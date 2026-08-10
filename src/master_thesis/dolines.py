@@ -25,27 +25,31 @@ def clip_to_aoi(dem_path: Path, aoi_path: Path, output_path: Path) -> None:
         dst.write(image)
 
 
-def detect_dolines(
-    dem_path: Path,
-    work_dir: Path,
-    min_depth_m: float = 0.3,
-    min_area_m2: float = 4.0,
-) -> gpd.GeoDataFrame:
-    """Detect closed depressions (candidate dolines) in a DEM.
+def compute_depth_raster(dem_path: Path, output_path: Path) -> None:
+    """Fill every sink in a DEM and write per-pixel fill depth (whitebox DepthInSink).
 
-    Fills every sink in the DEM and measures fill depth per pixel (whitebox
-    DepthInSink), then keeps connected regions deeper than ``min_depth_m``
-    and larger than ``min_area_m2``. Returns polygons with area, max depth,
-    and circularity — thresholds are a starting point, not tuned.
+    This is the slow step (minutes on a full-res DSM) — run once per DEM, then
+    call ``extract_depressions`` as many times as needed to try thresholds
+    without repeating this.
     """
-    work_dir.mkdir(parents=True, exist_ok=True)
-    depth_path = work_dir / f"{dem_path.stem}_depth.tif"
-
     wbt = WhiteboxTools()
     wbt.set_verbose_mode(False)
     wbt.set_working_dir(str(dem_path.parent.resolve()))
-    wbt.depth_in_sink(str(dem_path.resolve()), str(depth_path.resolve()), zero_background=True)
+    wbt.depth_in_sink(str(dem_path.resolve()), str(output_path.resolve()), zero_background=True)
 
+
+def extract_depressions(
+    depth_path: Path,
+    min_depth_m: float = 0.3,
+    min_area_m2: float = 4.0,
+) -> gpd.GeoDataFrame:
+    """Threshold a depth-in-sink raster into candidate doline polygons.
+
+    Keeps connected regions deeper than ``min_depth_m`` and larger than
+    ``min_area_m2``. Returns polygons with area, max depth, and circularity —
+    cheap enough to call repeatedly while tuning thresholds against a fixed
+    depth raster from ``compute_depth_raster``.
+    """
     with rasterio.open(depth_path) as src:
         depth = src.read(1, masked=True).filled(0)
         transform = src.transform
@@ -97,3 +101,20 @@ def detect_dolines(
     gdf["circularity"] = 4 * np.pi * gdf["area_m2"] / gdf["perimeter_m"] ** 2
 
     return gdf
+
+
+def detect_dolines(
+    dem_path: Path,
+    work_dir: Path,
+    min_depth_m: float = 0.3,
+    min_area_m2: float = 4.0,
+) -> gpd.GeoDataFrame:
+    """Convenience wrapper: compute the depth raster and threshold it once.
+
+    Prefer calling ``compute_depth_raster`` + ``extract_depressions``
+    directly when trying multiple thresholds on the same DEM.
+    """
+    work_dir.mkdir(parents=True, exist_ok=True)
+    depth_path = work_dir / f"{dem_path.stem}_depth.tif"
+    compute_depth_raster(dem_path, depth_path)
+    return extract_depressions(depth_path, min_depth_m=min_depth_m, min_area_m2=min_area_m2)
