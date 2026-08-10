@@ -6,6 +6,17 @@ those are often the most useful record, since they stop us re-trying the
 same dead end later. See `CLAUDE.md` for the instruction to keep this
 updated.
 
+## Parking lot (later, not now)
+
+Ideas raised mid-work that are deliberately deferred — not forgotten, just
+not blocking the current task.
+
+- Mapped dolines are visibly **not circular** — don't lean on circularity as
+  a validation/filter criterion once we get to polygon delineation.
+- Correlate doline locations/clustering with mapped geological fault lines
+  once detection is working — ties into the karst-vs-permafrost research
+  question. No fault dataset sourced yet.
+
 Entry format:
 
 ```
@@ -158,3 +169,34 @@ signal is across a 30 cm-4 m size range, not just method inadequacy. Next:
 either map more points for tighter calibration, or run a full detection
 pass at window=5m/threshold=-0.3 now and validate visually, or both.
 Decision pending user input.
+
+---
+
+## 2026-08-10 — Deeper calibration: 19 points, leave-one-out, DepthInSink combo
+
+**What we did:** User mapped 6 more points (19 total). Expanded window sweep
+to 10 widths (0.5-10 m), fine threshold grid, picked best (window,
+threshold) per window by Youden's J (recall - background FPR). Then ran
+leave-one-out cross-validation over the 19 points (refit window/threshold on
+the other 18 each time) to check the choice isn't overfit to these exact
+points. Also tested combining DevFromMeanElev with a DepthInSink closedness
+requirement (real hydrological sink, not just a locally-low spot), to see if
+it screens out linear-gully false positives.
+
+**Data:** `data/manual/Sinkholes.shp` (19 points), 300 background points,
+20250820 clipped LiDAR DSM.
+
+**Result:**
+- Full-data fit: window=4 m, threshold=-0.22 → recall 84%, background FPR 11%.
+- **Leave-one-out: 79% recall (15/19)**, window=4 m chosen in 18/19 folds —
+  stable choice, not noise.
+- Combining with DepthInSink made things *worse*: recall dropped to 53% for
+  only a small FPR improvement (11% -> ~2%). Many real dolines apparently
+  don't register as a strongly "closed" sink in DepthInSink's global-fill
+  sense, even though DevFromMeanElev picks up their local relief fine.
+
+**Conclusion:** Current best practical method: **DevFromMeanElev, window=4m,
+threshold≈-0.2 to -0.22**, ~79-84% recall at ~11% background false-positive
+rate. Not combining with DepthInSink. Next: tested whitebox `Geomorphons`
+(pit vs. valley landform classification, Jasiewicz & Stepinski 2013) as a
+more targeted alternative to the closedness idea — see next entry.
