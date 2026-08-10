@@ -17,13 +17,19 @@ for them.
 
 ## Where the actual data lives
 
-Fill this in once real data arrives — path to the external drive / network
-location / cloud storage where the raw files actually live, since they're
-not in git. Example:
+Local disk only, directly under `data/raw/` etc. on this machine (the tower).
+Coding/processing work happens only on this device for now — no cross-machine
+sync (bwSync&Share client didn't work out, OneDrive's 10 GB quota is too
+small for point cloud data anyway). Revisit if that changes.
+
+No backup currently exists beyond this one machine. Elio's UAV data (and
+anything from the August 2026 fieldwork) is not reproducible if lost, so at
+minimum an occasional manual copy to an external drive is worth doing once
+real data lands here — flagging this now rather than after something goes
+wrong.
+
+Fill in specifics once real data arrives, e.g.:
 
 ```
-Raw UAV point clouds: <drive/path> — <short description, date acquired>
+Raw UAV point clouds: data/raw/<campaign-name>/ — <short description, date acquired>
 ```
-
-Keeping this section current is more important than it looks: it's the only
-record of where the source data is once it's not in the repo.
