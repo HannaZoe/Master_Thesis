@@ -144,10 +144,13 @@ Master/
 
 - Coordinate reference systems: state the CRS explicitly in every script/
   notebook that reads or writes spatial data — don't rely on an implicit
-  default. Bavarian state data (DGM1 etc.) natively uses ETRS89/UTM32N
-  (EPSG:25832) — treat that as the project's default working CRS unless a
-  specific dataset/analysis calls for another (e.g. UAV processing in a local
-  project CRS, or a geographic CRS for Sentinel-1 products).
+  default. Elio's UAV DSMs (Terra-processed) are natively **EPSG:32632**
+  (WGS84/UTM32N) at ~5 cm resolution — treat that as the project's default
+  working CRS. Note this is *not* the same datum as EPSG:25832 (ETRS89/UTM32N,
+  used by the Bavarian DGM1) — close enough to be easy to miss, different
+  enough to matter; reproject explicitly when combining the two rather than
+  assuming they line up. Agisoft multispectral exports currently come out in
+  EPSG:4326 (geographic) and need reprojecting before use.
 - File naming: lowercase, hyphen-separated, no spaces (matches the rest of
   this repo's convention).
 - Large binary data never gets committed to git, even in `data/processed/` —
