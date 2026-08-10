@@ -14,6 +14,12 @@ for them.
 - `processed/` — final, analysis-ready outputs (e.g. a CHM, a classified
   point cloud). Also regenerable from `raw/` + code — don't treat this as
   a permanent store either.
+- `manual/` — **exception to the rule above: this one IS tracked in git.**
+  Hand-digitized reference data (manual doline mapping — point + polygon per
+  feature) is small, not regenerable from other data, and is original
+  research output rather than bulk sensor data — the usual "too large,
+  not diffable" reasons for excluding `data/` from git don't apply. Treat it
+  like code: commit it.
 
 ## Naming convention (Elio's UAV deliverables)
 
