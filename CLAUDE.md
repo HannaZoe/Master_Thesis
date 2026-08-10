@@ -87,6 +87,17 @@ setting (evaporite karst vs. alpine glaciokarst).
   this without being asked. Failed attempts go in too — the point is to
   never silently re-try a dead end because the reasoning got lost between
   sessions.
+- Commit and push after every meaningful unit of work, without being asked.
+  This is an academic project — the code needs to actually be reproducible
+  and backed up, not just working on one machine in an uncommitted state.
+  Don't let more than one logical change pile up uncommitted.
+- Comments: minimal, but a little lighthearted is fine — this doesn't need
+  to read like enterprise code. No emojis anywhere in code.
+- The doline detection code is meant to converge into one canonical script
+  that represents the current best-known method (not a growing pile of
+  per-date notebooks). Notebooks stay useful for the actual exploration/
+  calibration work; once a method is validated, fold it into the script and
+  keep iterating on that one place going forward.
 
 ## Stack
 

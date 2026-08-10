@@ -8,7 +8,7 @@ import rasterio
 import rasterio.features
 import rasterio.mask
 from scipy import ndimage
-from shapely.geometry import shape
+from shapely.geometry import Point, shape
 from whitebox import WhiteboxTools
 
 
@@ -118,3 +118,55 @@ def detect_dolines(
     depth_path = work_dir / f"{dem_path.stem}_depth.tif"
     compute_depth_raster(dem_path, depth_path)
     return extract_depressions(depth_path, min_depth_m=min_depth_m, min_area_m2=min_area_m2)
+
+
+def compute_dev_from_mean_elev(dem_path: Path, output_path: Path, filter_px: int) -> None:
+    """Local relief: elevation minus the mean elevation in an NxN window (whitebox
+    DevFromMeanElev). Unlike DepthInSink, this cancels out the regional slope trend,
+    since it compares each cell to its own neighborhood rather than a global fill.
+    ``filter_px`` should be odd; roughly match it to the target feature diameter.
+    """
+    wbt = WhiteboxTools()
+    wbt.set_verbose_mode(False)
+    wbt.set_working_dir(str(dem_path.parent.resolve()))
+    wbt.dev_from_mean_elev(
+        str(dem_path.resolve()), str(output_path.resolve()), filterx=filter_px, filtery=filter_px
+    )
+
+
+def sample_raster(raster_path: Path, points: gpd.GeoDataFrame) -> np.ndarray:
+    """Sample a single-band raster's value at each point (reprojecting if needed)."""
+    with rasterio.open(raster_path) as src:
+        pts = points.to_crs(src.crs) if points.crs != src.crs else points
+        coords = [(geom.x, geom.y) for geom in pts.geometry]
+        return np.array([val[0] for val in src.sample(coords)])
+
+
+def random_points_in_polygon(
+    polygon,
+    n: int,
+    crs,
+    exclude: gpd.GeoSeries | None = None,
+    exclude_buffer_m: float = 2.0,
+    seed: int | None = None,
+) -> gpd.GeoDataFrame:
+    """Random points inside a polygon, for background/control sampling.
+
+    Excludes points within ``exclude_buffer_m`` of any geometry in ``exclude``
+    (e.g. known doline locations), so background stats aren't contaminated by
+    real features that happen to land in the "background" sample.
+    """
+    rng = np.random.default_rng(seed)
+    exclude_union = exclude.buffer(exclude_buffer_m).union_all() if exclude is not None else None
+    minx, miny, maxx, maxy = polygon.bounds
+
+    points: list[Point] = []
+    while len(points) < n:
+        candidate = Point(rng.uniform(minx, maxx), rng.uniform(miny, maxy))
+        if not polygon.contains(candidate):
+            continue
+        if exclude_union is not None and exclude_union.contains(candidate):
+            continue
+        points.append(candidate)
+
+    return gpd.GeoDataFrame(geometry=points, crs=crs)
