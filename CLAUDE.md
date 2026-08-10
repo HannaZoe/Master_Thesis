@@ -81,6 +81,12 @@ setting (evaporite karst vs. alpine glaciokarst).
   lint-clean is a precondition for committing, not a follow-up step.
 - No AI attribution in git history — plain commit messages, no
   "Co-Authored-By: Claude" / "Generated with Claude Code" trailers.
+- After every substantive analysis attempt — worked or not — append an entry
+  to `docs/experiment_log.md`: date, what we did (data, method), the
+  reasoning behind trying it, what worked/didn't, and where we landed. Do
+  this without being asked. Failed attempts go in too — the point is to
+  never silently re-try a dead end because the reasoning got lost between
+  sessions.
 
 ## Stack
 
@@ -137,6 +143,7 @@ Master/
 ├── qgis/projects/   .qgz/.qgs project files (tracked in git — small XML/sqlite)
 ├── outputs/         figures/ and maps/ — regenerable, gitignored
 ├── docs/thesis/     the actual thesis writing
+├── docs/experiment_log.md   running record of analysis attempts — see Working conventions
 └── tests/           tests for code in src/
 ```
 
