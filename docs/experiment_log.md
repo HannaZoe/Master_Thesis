@@ -200,3 +200,96 @@ threshold≈-0.2 to -0.22**, ~79-84% recall at ~11% background false-positive
 rate. Not combining with DepthInSink. Next: tested whitebox `Geomorphons`
 (pit vs. valley landform classification, Jasiewicz & Stepinski 2013) as a
 more targeted alternative to the closedness idea — see next entry.
+
+---
+
+## 2026-08-10 — Geomorphons as a supplementary filter (also didn't help)
+
+**What we did:** Computed whitebox `Geomorphons` (search=80 px, forms mode —
+classifies each cell into 10 landform types: flat/peak/ridge/shoulder/spur/
+slope/hollow/footslope/valley/pit). Checked which classes real dolines fall
+into, then tested combining "pit OR hollow" with the DevFromMeanElev
+threshold from the previous entry.
+
+**Data:** same 19 manual points + 300 background points, 20250820 clipped
+LiDAR DSM.
+
+**Thought:** `Geomorphons` is purpose-built to distinguish real closed pits
+from open/linear terrain (valleys, slopes) using a self-adaptive multi-scale
+line-of-sight method — more targeted than DepthInSink's global fill for the
+slope-vs-doline confusion. Also directly relevant: user independently noted
+the mapped dolines aren't circular, which predicts "pit" (needs ~360°
+concavity) would undercount them.
+
+**Result:** Confirmed the shape prediction — only 4/19 manual points
+classify as strict "pit"; 8/19 classify as "hollow" (partial concavity),
+matching the non-circular shapes. "Pit" alone: 21% recall, ~0% background
+FPR (too strict to use alone). Combining DevFromMeanElev (window=4m) with
+"pit OR hollow" required: recall dropped from 84% to 53% at threshold=-0.22,
+while FPR only dropped from 11% to 5% — worse Youden's J (0.48 vs 0.73) than
+DevFromMeanElev alone, same pattern as the DepthInSink combo attempt.
+
+**Conclusion:** Two independent supplementary-filter attempts (DepthInSink
+closedness, Geomorphons landform class) both underperformed the plain
+DevFromMeanElev threshold — stopping here rather than continuing to chase
+combinations. **Final calibrated method for the first-pass detection:
+DevFromMeanElev, window=4m, threshold=-0.22 m, no additional filter.**
+~79-84% recall, ~11% background false-positive rate. Next: run this across
+the full 20250820 AOI to produce the first candidate doline map.
+
+---
+
+## 2026-08-10 — Full-AOI run: point calibration doesn't transfer to whole raster
+
+**What we did:** Ran the calibrated method (`extract_anomalies`, window=4m,
+threshold=-0.22) across the *entire* clipped 20250820 AOI, not just the
+19+300 sampled points used for calibration. Refactored `dolines.py`:
+extracted shared threshold/vectorize logic into `_extract_regions`, added
+`extract_anomalies` (DevFromMeanElev-based) alongside the older
+`extract_depressions` (DepthInSink-based).
+
+**Data:** full clipped 20250820 LiDAR DSM (`data/interim/..._dev81.tif`,
+window=4m, cached from calibration), `data/manual/Sinkholes.shp` (19 points).
+
+**Thought:** With a calibrated window/threshold in hand, run it for real.
+
+**Result:** **14,920 candidates** — unusable, ~400x too many. The point-based
+recall/FPR from calibration doesn't predict full-raster candidate *count*:
+sampling checks whether N discrete locations pass a threshold, but applied to
+every pixel, bare rock's continuous small-scale roughness produces enormous
+speckle (many small, separate below-threshold patches) that random point
+sampling at n=300 never surfaced. Checked whether real dolines'
+anomaly-region footprints differ from noise: 16/19 manual points fall inside
+a candidate polygon (matches ~84% recall from calibration); those matched
+polygons have median area 15 m² (25th pct 9.4 m²) vs. all-candidates median
+of only 0.43 m² — a real signal, but even an aggressive area cutoff (10 m²)
+still leaves ~1,159 candidates and drops 4/16 real matches to get there.
+Circularity doesn't help either — real dolines have *lower* circularity
+(median 0.18) than the noise pool (median 0.22), consistent with the user's
+observation that they aren't round; ruled out as a filter.
+
+**Conclusion:** Area/shape post-filtering alone isn't enough — the core
+problem is that per-pixel static thresholding can't distinguish "shallow
+noisy dip" from "genuinely prominent depression." Added `scikit-image` and
+started testing `skimage.morphology.h_minima` — an extended-minima transform
+that keeps regional minima with at least a given depth/prominence `h`
+relative to their surrounding terrain, rather than any pixel crossing a
+static value. More principled fix for exactly this speckle problem than
+another round of ad-hoc thresholds.
+
+**Where we ended (session cut short, user had to log off):** h-minima test
+was mid-run (`h` in [0.15, 0.2, 0.3, 0.4, 0.5], checking resulting region
+count + how many of the 19 manual points get flagged) when the session
+ended — no results yet. The test code is saved as the last two cells of
+`notebooks/03_doline_calibration_20250820.ipynb` (marked WIP), not yet
+executed to completion.
+
+**Next step:** Rerun those WIP cells, pick an `h` that gets candidate count
+into a plausible range (tens, not thousands) while keeping recall reasonable
+— same recall/FPR-style evaluation as the DevFromMeanElev calibration
+earlier in this doc. If h-minima works, fold the validated method into
+`src/master_thesis/doline_detection.py` properly (a real function, not a
+scratch test) and re-run the full-AOI detection. If it *doesn't* get the count down
+enough on its own, worth trying it combined with the area-based cutoff from
+this entry (9-10 m², grounded in real matched-polygon sizes) — the two
+might compound better together than either did alone.

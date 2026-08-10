@@ -20,6 +20,7 @@ dependencies = [
     "pandas>=3.0.5",
     "pyproj>=3.7.2",
     "rasterio>=1.5.1",
+    "scikit-image>=0.26.0",
     "scipy>=1.18.0",
     "shapely>=2.1.2",
     "whitebox>=2.3.6",

@@ -1,5 +1,6 @@
 """Closed-depression (candidate doline) detection from a DEM."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 import geopandas as gpd
@@ -38,38 +39,36 @@ def compute_depth_raster(dem_path: Path, output_path: Path) -> None:
     wbt.depth_in_sink(str(dem_path.resolve()), str(output_path.resolve()), zero_background=True)
 
 
-def extract_depressions(
-    depth_path: Path,
-    min_depth_m: float = 0.3,
-    min_area_m2: float = 4.0,
+def _extract_regions(
+    raster_path: Path,
+    condition: Callable[[np.ndarray], np.ndarray],
+    stat_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    stat_name: str,
+    min_area_m2: float,
 ) -> gpd.GeoDataFrame:
-    """Threshold a depth-in-sink raster into candidate doline polygons.
-
-    Keeps connected regions deeper than ``min_depth_m`` and larger than
-    ``min_area_m2``. Returns polygons with area, max depth, and circularity —
-    cheap enough to call repeatedly while tuning thresholds against a fixed
-    depth raster from ``compute_depth_raster``.
+    """Shared plumbing for extract_depressions/extract_anomalies: threshold a raster,
+    keep connected regions above a minimum area, vectorize, attach per-region stats.
     """
-    with rasterio.open(depth_path) as src:
-        depth = src.read(1, masked=True).filled(0)
+    with rasterio.open(raster_path) as src:
+        values = src.read(1, masked=True).filled(0)
         transform = src.transform
         crs = src.crs
         px_area_m2 = abs(transform.a * transform.e)
 
     empty = gpd.GeoDataFrame(
-        columns=["label", "area_m2", "max_depth_m", "perimeter_m", "circularity", "geometry"],
+        columns=["label", "area_m2", stat_name, "perimeter_m", "circularity", "geometry"],
         geometry="geometry",
         crs=crs,
     )
 
-    depression = depth > min_depth_m
-    labeled, n_labels = ndimage.label(depression, structure=np.ones((3, 3)))
+    mask = condition(values)
+    labeled, n_labels = ndimage.label(mask, structure=np.ones((3, 3)))
     if n_labels == 0:
         return empty
 
     label_ids = np.arange(1, n_labels + 1)
-    areas_m2 = ndimage.sum(depression, labeled, label_ids) * px_area_m2
-    max_depths = ndimage.maximum(depth, labeled, label_ids)
+    areas_m2 = ndimage.sum(mask, labeled, label_ids) * px_area_m2
+    stat_vals = stat_fn(values, labeled, label_ids)
 
     keep = label_ids[areas_m2 >= min_area_m2]
     if len(keep) == 0:
@@ -90,17 +89,61 @@ def extract_depressions(
 
     stats = dict(
         zip(
-            label_ids.tolist(),
-            zip(areas_m2.tolist(), max_depths.tolist(), strict=True),
-            strict=True,
+            label_ids.tolist(), zip(areas_m2.tolist(), stat_vals.tolist(), strict=True), strict=True
         )
     )
     gdf["area_m2"] = gdf["label"].map(lambda lbl: stats[lbl][0])
-    gdf["max_depth_m"] = gdf["label"].map(lambda lbl: stats[lbl][1])
+    gdf[stat_name] = gdf["label"].map(lambda lbl: stats[lbl][1])
     gdf["perimeter_m"] = gdf.geometry.length
     gdf["circularity"] = 4 * np.pi * gdf["area_m2"] / gdf["perimeter_m"] ** 2
 
     return gdf
+
+
+def extract_depressions(
+    depth_path: Path,
+    min_depth_m: float = 0.3,
+    min_area_m2: float = 4.0,
+) -> gpd.GeoDataFrame:
+    """Threshold a depth-in-sink raster into candidate doline polygons.
+
+    Keeps connected regions deeper than ``min_depth_m`` and larger than
+    ``min_area_m2``. Returns polygons with area, max depth, and circularity —
+    cheap enough to call repeatedly while tuning thresholds against a fixed
+    depth raster from ``compute_depth_raster``. Superseded by
+    ``extract_anomalies`` for sloped terrain — see experiment_log.md.
+    """
+    return _extract_regions(
+        depth_path,
+        condition=lambda v: v > min_depth_m,
+        stat_fn=lambda v, lab, ids: ndimage.maximum(v, lab, ids),
+        stat_name="max_depth_m",
+        min_area_m2=min_area_m2,
+    )
+
+
+def extract_anomalies(
+    dev_path: Path,
+    threshold_m: float = -0.22,
+    min_area_m2: float = 0.05,
+) -> gpd.GeoDataFrame:
+    """Threshold a DevFromMeanElev raster into candidate doline polygons.
+
+    Keeps connected regions more negative than ``threshold_m`` (locally lower
+    than their neighborhood) and larger than ``min_area_m2``. Default
+    threshold and the window size used to build ``dev_path`` should come from
+    calibration against real ground truth, not guessed — see
+    experiment_log.md for how the -0.22 m / 4 m window default was picked.
+    ``min_area_m2`` here is just a speckle filter, not a real size cutoff —
+    the anomaly footprint isn't the same thing as the doline's true extent.
+    """
+    return _extract_regions(
+        dev_path,
+        condition=lambda v: v < threshold_m,
+        stat_fn=lambda v, lab, ids: ndimage.minimum(v, lab, ids),
+        stat_name="min_dev_m",
+        min_area_m2=min_area_m2,
+    )
 
 
 def detect_dolines(
