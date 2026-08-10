@@ -1,0 +1,50 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Data — raw/interim/processed stay out of git, see data/CLAUDE.md
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Point cloud / raster formats (in case any land outside data/ by accident)
+*.las
+*.laz
+*.ply
+*.e57
+*.tif
+*.tiff
+
+# Outputs (regenerable from scripts/notebooks)
+outputs/figures/*
+outputs/maps/*
+!outputs/figures/.gitkeep
+!outputs/maps/.gitkeep
+
+# QGIS
+*.qgz~
+*.qgs~
+*.gpkg-shm
+*.gpkg-wal
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# VS Code (keep shared settings, ignore personal ones)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

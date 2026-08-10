@@ -1,0 +1,30 @@
+[project]
+name = "master-thesis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Hanna Schulten" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fiona>=1.10.1",
+    "geopandas>=1.1.4",
+    "ipykernel>=7.3.0",
+    "jupyterlab>=4.6.2",
+    "laspy>=2.7.0",
+    "lazrs>=0.8.2",
+    "matplotlib>=3.11.1",
+    "numpy>=2.5.2",
+    "open3d>=0.19.0",
+    "pandas>=3.0.5",
+    "pyproj>=3.7.2",
+    "rasterio>=1.5.1",
+    "scipy>=1.18.0",
+    "shapely>=2.1.2",
+    "whitebox>=2.3.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
