@@ -123,3 +123,38 @@ a coincidental count match.
 
 Next: Claude to prepare a structured geopackage template (point + polygon
 layers, linked by ID) for the manual mapping.
+
+---
+
+## 2026-08-10 — DevFromMeanElev calibration against 13 manual points
+
+**What we did:** User manually mapped 13 obvious dolines as center points
+(`data/manual/Sinkholes.shp`, points only so far, no polygons/diameters
+recorded yet). Computed `DevFromMeanElev` at 6 window widths (0.5/1/2/3/5/8 m)
+on the 20250820 LiDAR DSM, sampled the value at each manual point and at 200
+random background points (excluding a 2 m buffer around manual points), and
+compared recall (% of manual points below a threshold) against background
+false-positive rate at each window/threshold combination.
+
+**Data:** `data/manual/Sinkholes.shp` (13 points, reprojected from EPSG:4326
+to EPSG:32632), cached `20250820` clipped LiDAR DSM.
+
+**Thought:** With real ground truth available, calibrate window size and
+threshold empirically instead of guessing — see previous entry.
+
+**Result:** No window/threshold gives clean separation — every combination
+has some overlap between manual dolines and background. Best working zone:
+**window=5 m, threshold≈-0.3 m** → 77% recall (10/13) at 8% background
+false-positive rate. Counterintuitively, smaller windows closer to the
+actual doline diameter (0.5-1 m) separate *worse* than the 5 m window, not
+better — worth keeping in mind for the methods write-up. With only 13
+points, these percentages are coarse (~8 percentage points per point) and
+should be treated as a working direction, not a final number.
+
+**Conclusion:** DevFromMeanElev is a real, usable signal (a large
+improvement over DepthInSink's slope confound), but not a clean detector on
+its own — likely reflects genuine variation in how strong the depression
+signal is across a 30 cm-4 m size range, not just method inadequacy. Next:
+either map more points for tighter calibration, or run a full detection
+pass at window=5m/threshold=-0.3 now and validate visually, or both.
+Decision pending user input.
