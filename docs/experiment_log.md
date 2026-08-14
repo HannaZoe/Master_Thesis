@@ -293,3 +293,45 @@ scratch test) and re-run the full-AOI detection. If it *doesn't* get the count d
 enough on its own, worth trying it combined with the area-based cutoff from
 this entry (9-10 m², grounded in real matched-polygon sizes) — the two
 might compound better together than either did alone.
+
+---
+
+## 2026-08-11 — h-minima debugged (wrong tool usage), then watershed, still too many candidates
+
+**What we did:** First reran the WIP h-minima cells (new session) — got 0/19
+manual hits at every `h` tested, which smelled like a bug rather than a real
+result. Verified the coordinate transform was correct (matched `rasterio`'s
+own `.index()` exactly). Root cause turned out to be a misunderstanding of
+`h_minima` itself: a synthetic bowl test showed it flags only the single
+deepest pixel of a basin, not the basin's extent — manually-placed points
+almost never land on that exact pixel. Fixed by using h-minima seeds to grow
+full basins via `skimage.segmentation.watershed` (mask constrained to
+`dev < 0`), then checking whether manual points fall *inside* the resulting
+basin polygons instead of on the seed pixel. Then swept window size (6/8/10 m,
+using already-cached DevFromMeanElev rasters) x h (0.3/0.5/0.8) to see if a
+larger, more-smoothed input reduces candidate count further.
+
+**Data:** 19 manual points, 20250820 clipped LiDAR DSM, cached DevFromMeanElev
+rasters at several window widths.
+
+**Result:** Watershed fixed the recall problem (up to 17-19/19 depending on
+h/window — much better than point-threshold's 79-84%) but candidate *count*
+is still far too high at every setting tried. Best case: window=10m, h=0.8 ->
+692 basins, 12/19 (63%) recall. Larger/smoother windows do reduce count
+(4277 -> 692 going from 6m/h=0.3 to 10m/h=0.8) but plateau nowhere near the
+~30-35 target, and recall drops as thresholds tighten enough to get there.
+
+**Conclusion:** This isn't a tuning problem anymore, it's a real limit —
+bare alpine karst rock at 5cm resolution has more genuinely "prominent"
+local minima than there are real dolines, by roughly an order of magnitude,
+regardless of window size, h, or segmentation method. Five different
+approaches now (absolute threshold, DepthInSink combo, Geomorphons combo,
+h-minima, h-minima+watershed) all hit the same wall. Topography alone likely
+isn't sufficient to fully automate this at the target precision — next
+avenue worth trying, if pursued further, is combining topographic evidence
+with the RGB orthophoto (e.g. water-filled dolines should have a distinct
+spectral signature unlike generic rock texture, which pure elevation
+analysis can't see). For now: treat automated detection as a *shortlist
+generator* (narrows ~30M pixels down to a few hundred/thousand candidates
+worth a human look), not a final answer — manual visual screening in QGIS
+remains necessary regardless of which of these settings gets used.

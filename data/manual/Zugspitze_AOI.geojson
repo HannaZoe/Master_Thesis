@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "Zugspitze_AOI",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": null }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ 10.988072685432451, 47.418660027908558 ], [ 11.010580558272885, 47.415669550526658 ], [ 11.009160005288569, 47.410371716536787 ], [ 10.986178614786695, 47.413875182572987 ], [ 10.988072685432451, 47.418660027908558 ] ] ] ] } }
+]
+}

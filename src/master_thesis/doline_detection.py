@@ -10,6 +10,8 @@ import rasterio.features
 import rasterio.mask
 from scipy import ndimage
 from shapely.geometry import Point, shape
+from skimage.morphology import h_minima
+from skimage.segmentation import watershed
 from whitebox import WhiteboxTools
 
 
@@ -144,6 +146,74 @@ def extract_anomalies(
         stat_name="min_dev_m",
         min_area_m2=min_area_m2,
     )
+
+
+def extract_basins(
+    dev_path: Path,
+    h: float = 0.5,
+    min_area_m2: float = 1.0,
+) -> gpd.GeoDataFrame:
+    """Candidate dolines via h-minima-seeded watershed segmentation.
+
+    Best-performing method tested so far (see experiment_log.md), but still
+    finds far more candidates than real dolines on this terrain -- bare
+    alpine karst rock has roughly an order of magnitude more "prominent"
+    local minima than actual dolines. Treat the output as a shortlist for
+    manual review in QGIS, not a final answer.
+
+    Seeds come from skimage.morphology.h_minima (regional minima with depth
+    >= h relative to their surroundings, not just a static threshold), grown
+    to their full extent via watershed, masked to dev < 0 so basins stop at
+    a sensible rim instead of eating the whole raster.
+    """
+    with rasterio.open(dev_path) as src:
+        dev = src.read(1, masked=True).filled(0)
+        transform = src.transform
+        crs = src.crs
+        px_area_m2 = abs(transform.a * transform.e)
+
+    empty = gpd.GeoDataFrame(
+        columns=["label", "area_m2", "min_dev_m", "perimeter_m", "circularity", "geometry"],
+        geometry="geometry",
+        crs=crs,
+    )
+
+    seed_labels, n_seeds = ndimage.label(h_minima(dev, h), structure=np.ones((3, 3)))
+    if n_seeds == 0:
+        return empty
+
+    basins = watershed(dev, markers=seed_labels, mask=dev < 0)
+    label_ids, counts = np.unique(basins[basins > 0], return_counts=True)
+    areas_m2 = counts * px_area_m2
+
+    big_enough = areas_m2 >= min_area_m2
+    keep = label_ids[big_enough]
+    if len(keep) == 0:
+        return empty
+    kept_areas = areas_m2[big_enough]
+    min_devs = ndimage.minimum(dev, basins, keep)
+
+    keep_mask = np.isin(basins, keep)
+    filtered = np.where(keep_mask, basins, 0).astype(np.int32)
+    shapes = rasterio.features.shapes(filtered, mask=keep_mask, transform=transform)
+    gdf = (
+        gpd.GeoDataFrame(
+            [{"label": int(value), "geometry": shape(geom)} for geom, value in shapes],
+            crs=crs,
+        )
+        .dissolve(by="label")
+        .reset_index()
+    )
+
+    stats = dict(
+        zip(keep.tolist(), zip(kept_areas.tolist(), min_devs.tolist(), strict=True), strict=True)
+    )
+    gdf["area_m2"] = gdf["label"].map(lambda lbl: stats[lbl][0])
+    gdf["min_dev_m"] = gdf["label"].map(lambda lbl: stats[lbl][1])
+    gdf["perimeter_m"] = gdf.geometry.length
+    gdf["circularity"] = 4 * np.pi * gdf["area_m2"] / gdf["perimeter_m"] ** 2
+
+    return gdf
 
 
 def detect_dolines(
