@@ -446,3 +446,82 @@ recommending to the user: treat the best current automated output
 as a cross-check shortlist against manual mapping, not a replacement for it,
 rather than continuing to chase incremental algorithm tuning. Decision
 pending user input.
+
+---
+
+## 2026-08-14 — Susceptibility model v1: Random Forest + terrain/spectral covariates (20250820, benchmark run)
+
+**What we did:** Following a scope-narrowing conversation with Elio (permafrost
+degradation as the cause is now de-emphasized — dolines were already present
+in 2003 imagery; new focus is doline growth-over-time plus a genuine
+multi-sensor detection *method* as a thesis contribution in its own right, not
+just detection-by-thresholding), built a susceptibility/factor-importance
+model instead of another detection threshold: presence points (34 manual) +
+background (300 random) sampled against a covariate stack, fit with a Random
+Forest, importance read via permutation importance + partial dependence —
+same framing as karst/landslide susceptibility mapping and presence-background
+SDMs (MaxEnt etc). Scoped to 20250820 only (richest single-epoch dataset —
+LiDAR DSM + RGB ortho).
+
+New covariates derived (`src/master_thesis/terrain_covariates.py`, whitebox
+wrappers): slope, aspect (converted to northness/eastness — aspect itself is
+circular, unsafe to feed a model directly), plan/profile curvature,
+roughness, TWI (flow-accumulation-based). Combined with the existing
+DevFromMeanElev (4m window) and RGB brightness deviation (10m window) from
+earlier calibration, plus geomorphon class (one-hot).
+
+Used spatial cross-validation (`GroupKFold` over a coarse 4x4 spatial block
+grid) instead of naive random k-fold, since points aren't spatially
+independent and random splits have inflated apparent performance elsewhere
+in this project.
+
+**Data:** `data/raw/20250820/20250820_terra_ppk_lidar_dsm.tif` (clipped),
+`20250820_terra_ppk_rgb_om.tif`, 34 manual points, 300 background points.
+Notebook: `notebooks/05_susceptibility_model_20250820.ipynb`.
+
+**Thought:** explicitly framed as a benchmark/pipeline-validation run, not a
+final result — fieldwork lands in ~2 weeks (26-28 Aug 2026) and will bring
+better/fresh data, at which point this gets a proper rerun. Today's goal was
+just confirming the pipeline runs end to end.
+
+**Result:**
+- Pipeline ran clean end to end.
+- Point-level performance looked excellent: naive random CV AUC 0.97, spatial
+  CV AUC ~0.97 on the folds that had both classes present — but one of five
+  spatial folds was degenerate (single-class, AUC undefined), because 34
+  presence points spread across only 12 occupied spatial blocks means some
+  folds get zero presence points. A real data-scarcity issue for spatial CV
+  at this sample size, not a bug — should resolve once more field-verified
+  points exist post-fieldwork.
+- Permutation importance (fit on all data) was dominated almost entirely by
+  `brightness_dev` (importance 0.046); every topographic covariate, including
+  `local_relief` (DevFromMeanElev, previously shown to have real standalone
+  signal in earlier calibration), came out at ~machine-epsilon — the noise
+  floor. Working hypothesis, not yet tested: brightness deviation in an
+  orthophoto is itself heavily shading-driven, i.e. a function of local
+  slope/aspect/curvature — so it may be acting as a compressed proxy for
+  exactly the topographic information the other covariates carry, leaving
+  them nothing to add at the margin once brightness is already in the model.
+  Worth checking directly (a covariate correlation matrix) before reading
+  this ranking as "topography doesn't matter here."
+- Full-raster susceptibility surface (coarsened to 0.5m resolution for
+  tractability — native 5cm over the full AOI is 600M+ pixels, not reasonable
+  to push through `predict_proba` for a first pass) hit the same tradeoff
+  wall as every prior method: threshold 0.3 → 79% recall (27/34) but 3,256
+  candidate regions; threshold 0.5 → 62% recall (21/34), 417 regions;
+  threshold 0.9 → 29% recall (10/34), 53 regions. No threshold gives both a
+  reviewable candidate count and high recall.
+
+**Conclusion:** Fourth independent confirmation in this project that
+point-level/sampled statistics do not predict full-raster performance — a
+multivariate Random Forest with near-perfect point-level AUC still hits the
+same ~40-65%-recall-for-reviewable-count ceiling on the actual raster as
+every univariate threshold method tried before it. This increasingly looks
+like a real property of the data/terrain rather than a limitation of any one
+algorithm. The more useful output from this run isn't the susceptibility map
+itself — it's the importance ranking, and even that needs the
+brightness/topography confound checked before it means anything. Known
+limitations to fix before the fieldwork rerun: spatial CV block size needs
+revisiting with a larger point set; permutation importance was computed
+in-sample (documented as such, not a bug, but worth a held-out version too);
+no thermal/multispectral available for this date.
