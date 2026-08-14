@@ -28,6 +28,7 @@ import rasterio
 import rasterio.mask
 from rasterio.merge import merge
 
+REQUEST_TIMEOUT_S = 20  # every network call must give up eventually, not hang forever
 WMS_BASE = "https://geoservices.bayern.de/od/wms/histdop/v1/histdop?"
 AOI_PATH = Path("data/manual/Zugspitze_AOI.geojson")
 OUT_DIR = Path("data/raw/bavaria_dop_hist")
@@ -45,7 +46,7 @@ SNOW_WARNING_THRESHOLD = (
 def available_years() -> list[int]:
     """Ask the service what years it actually has, instead of assuming."""
     url = WMS_BASE + "SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities"
-    xml = urllib.request.urlopen(url).read().decode()
+    xml = urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_S).read().decode()
     years = {int(y) for y in re.findall(r"by_dop_(\d{4})_h<", xml)}
     return sorted(years)
 
@@ -71,8 +72,9 @@ def capture_dates_in_aoi(year: int, aoi_bounds: tuple[float, float, float, float
                 "&INFO_FORMAT=text/plain&FEATURE_COUNT=1"
             )
             try:
-                text = urllib.request.urlopen(url).read().decode()
-            except Exception:
+                text = urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_S).read().decode()
+            except Exception as exc:
+                print(f"    ({year}: request failed at one grid point, skipping it -- {exc})")
                 continue
             match = re.search(r"ua = '(\d{2})\.(\d{2})\.(\d{4})'", text)
             if match:
@@ -103,7 +105,7 @@ def fetch_tile(year: int, bounds: tuple[float, float, float, float]) -> rasterio
         f"&BBOX={minx},{miny},{maxx},{maxy}&WIDTH={width}&HEIGHT={height}"
         "&FORMAT=image/tiff&STYLES="
     )
-    data = urllib.request.urlopen(url).read()
+    data = urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_S).read()
     memfile = rasterio.io.MemoryFile(data)
     return memfile
 
@@ -172,15 +174,20 @@ def main() -> None:
     aoi = gpd.read_file(AOI_PATH).to_crs(CRS)
     bounds = tuple(aoi.total_bounds)
 
-    log("Checking which years have snow-free coverage over the AOI...")
+    years = available_years()
+    log(f"Checking {len(years)} years ({years[0]}-{years[-1]}) for snow-free AOI coverage...")
     plan: list[tuple[int, date]] = []
-    for year in available_years():
+    for year in years:
         dates = capture_dates_in_aoi(year, bounds)
         snow_free = [d for d in dates if d.month in SNOW_FREE_MONTHS]
         skipped = [d for d in dates if d.month not in SNOW_FREE_MONTHS]
-        if skipped:
+        if not dates:
+            log(f"  {year}: no coverage found for this AOI")
+        elif skipped and not snow_free:
             skipped_str = [d.isoformat() for d in skipped]
             log(f"  {year}: skipping {skipped_str} (outside snow-free months)")
+        elif snow_free:
+            log(f"  {year}: keeping {[d.isoformat() for d in snow_free]}")
         if snow_free:
             plan.extend((year, d) for d in snow_free[:MAX_DATES_PER_YEAR])
 
