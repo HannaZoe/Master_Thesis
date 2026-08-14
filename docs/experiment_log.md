@@ -335,3 +335,52 @@ analysis can't see). For now: treat automated detection as a *shortlist
 generator* (narrows ~30M pixels down to a few hundred/thousand candidates
 worth a human look), not a final answer — manual visual screening in QGIS
 remains necessary regardless of which of these settings gets used.
+
+---
+
+## 2026-08-14 — Historical Bavaria DOP download script
+
+**What we did:** Built `scripts/download_bavaria_dop.py` to pull historical
+20cm orthophotos over `data/manual/Zugspitze_AOI.geojson` from Bavaria's free
+"Historische DOP" WMS (2003-present, no auth). Confirmed the real service
+details first (endpoint, layer names `by_dop_{year}_h`, date field via
+GetFeatureInfo) rather than guessing from docs. For each year: samples a
+grid of points across the AOI to find actual flight date(s) (a single annual
+layer can span >1 date if the AOI straddles a flight seam), keeps only dates
+in a snow-free month window (June-Sept default), tiles+mosaics the GetMap
+requests (AOI is 1836x880m, over the WMS's 6000x6000px/1200m cap), clips to
+the AOI polygon, and flags a rough brightness/saturation-based snow warning
+per downloaded image.
+
+**Data:** `data/manual/Zugspitze_AOI.geojson`, Bavaria WMS
+`geoservices.bayern.de/od/wms/histdop/v1/histdop`.
+
+**Thought:** Date alone isn't proof of snow-free conditions — already
+learned that the hard way with the June 2025 UAV flight — so this needed
+two independent, imperfect heuristics (date + pixel brightness) rather than
+trusting either alone, and the docstring says so explicitly.
+
+**Result:** First real run hung for 38 minutes doing essentially nothing
+(confirmed via Get-Process: ~3s actual CPU time) — root cause was missing
+timeouts on every `urllib.request.urlopen()` call, so one slow/stuck request
+blocked forever. Fixed with a 20s timeout for small text queries and a
+separate 90s timeout + 3x retry for the larger GetMap image tiles (these
+genuinely need longer, confirmed by a real transient timeout that succeeded
+on retry). Also made per-year failures non-fatal so one bad year doesn't
+kill the whole run.
+
+Final run: 23 years checked in ~15s, 10 qualifying dates found (2003-2024,
+most years have no coverage for this specific AOI since Bavaria flies
+North/South in alternating cycles), all 10 downloaded successfully. Visually
+checked 4 of the 10 against their snow-proxy scores: heuristic tracks real
+usability reasonably well, but the Zugspitzplatt's permanent snowfield
+(Schneeferner) inflates the score somewhat for every date regardless of
+season — a "45%" borderline file (2003) was actually fine, "82-87%" files
+(2020, 2024) were genuinely washed out. 2003-2005 imagery is also natively
+40cm resolution upsampled to a 20cm grid by the server, not real 20cm detail.
+
+**Conclusion:** Script works and is committed. Best-looking dates for manual
+mapping: 2006, 2009, 2012, 2015 (all under 50% snow-proxy). 2018/2020/2022/
+2024 dates are probably not usable without a closer look. Lesson for any
+future network-calling script in this project: always set an explicit
+timeout, never trust a bare `urlopen()` call not to hang indefinitely.
