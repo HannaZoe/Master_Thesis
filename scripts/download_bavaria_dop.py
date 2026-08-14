@@ -28,7 +28,9 @@ import rasterio
 import rasterio.mask
 from rasterio.merge import merge
 
-REQUEST_TIMEOUT_S = 20  # every network call must give up eventually, not hang forever
+REQUEST_TIMEOUT_S = 20  # for small text queries (GetCapabilities, GetFeatureInfo)
+TILE_TIMEOUT_S = 90  # actual image tiles are bigger and slower to transfer
+TILE_RETRIES = 3
 WMS_BASE = "https://geoservices.bayern.de/od/wms/histdop/v1/histdop?"
 AOI_PATH = Path("data/manual/Zugspitze_AOI.geojson")
 OUT_DIR = Path("data/raw/bavaria_dop_hist")
@@ -105,9 +107,15 @@ def fetch_tile(year: int, bounds: tuple[float, float, float, float]) -> rasterio
         f"&BBOX={minx},{miny},{maxx},{maxy}&WIDTH={width}&HEIGHT={height}"
         "&FORMAT=image/tiff&STYLES="
     )
-    data = urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_S).read()
-    memfile = rasterio.io.MemoryFile(data)
-    return memfile
+    last_error: Exception | None = None
+    for attempt in range(1, TILE_RETRIES + 1):
+        try:
+            data = urllib.request.urlopen(url, timeout=TILE_TIMEOUT_S).read()
+            return rasterio.io.MemoryFile(data)
+        except Exception as exc:
+            last_error = exc
+            print(f"    tile fetch failed (attempt {attempt}/{TILE_RETRIES}): {exc}")
+    raise RuntimeError(f"tile fetch failed after {TILE_RETRIES} attempts") from last_error
 
 
 def download_year(year: int, capture_date: date, aoi: gpd.GeoDataFrame, out_dir: Path) -> Path:
@@ -209,7 +217,11 @@ def main() -> None:
             log(f"{year} ({capture_date}): already downloaded (snow-proxy: {snow_frac:.0%}){flag}")
             continue
 
-        path = download_year(year, capture_date, aoi, out_path)
+        try:
+            path = download_year(year, capture_date, aoi, out_path)
+        except Exception as exc:
+            log(f"  {year} ({capture_date}): FAILED, skipping -- {exc}")
+            continue
         snow_frac = snow_proxy_fraction(path)
         flag = " <-- POSSIBLE SNOW, CHECK VISUALLY" if snow_frac > SNOW_WARNING_THRESHOLD else ""
         log(f"  saved {path} (snow-proxy: {snow_frac:.0%}){flag}")

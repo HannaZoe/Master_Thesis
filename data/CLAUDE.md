@@ -65,6 +65,20 @@ separation) rather than working from the DSMs as delivered, raw `.las`/`.laz`
 files would need to be requested from Elio separately. Thermal data hasn't
 arrived either.
 
+## `raw/bavaria_dop_hist/` — historical Bavaria orthophotos (separate source)
+
+Downloaded via `scripts/download_bavaria_dop.py` from the free Bavarian
+state WMS ("Historische DOP", `geoservices.bayern.de`, CC BY 4.0), covering
+`data/manual/Zugspitze_AOI.geojson` — not from Elio, doesn't follow his
+naming convention. One folder per year: `bavaria_dop_hist/{year}/
+bavaria_dop20_{date}.tif`, native CRS EPSG:25832 (not EPSG:32632 — see root
+CLAUDE.md). Only snow-free-month dates get downloaded, plus a rough
+brightness-based snow warning per file — both heuristics, not proof; check
+`download_log.txt` in that folder and look at each image before trusting it.
+2003-2005 imagery is natively 40cm resolution upsampled to a 20cm grid by
+the server, not real 20cm detail — treat pre-2006 dates as coarser than the
+file suggests.
+
 ## Where the actual data lives
 
 Local disk only, directly under `data/raw/` etc. on this machine (the tower).
