@@ -384,3 +384,65 @@ mapping: 2006, 2009, 2012, 2015 (all under 50% snow-proxy). 2018/2020/2022/
 2024 dates are probably not usable without a closer look. Lesson for any
 future network-calling script in this project: always set an explicit
 timeout, never trust a bare `urlopen()` call not to hang indefinitely.
+
+---
+
+## 2026-08-14 — Spectral (orthophoto brightness) signal, then combined with topography
+
+**What we did:** User visually checked the 2003 historical imagery and
+noted many dolines already appear present that early — worth remembering
+for the karst-vs-permafrost question, but doesn't itself disprove permafrost
+involvement (presence-at-one-date can't distinguish "old karst feature" from
+"formed early in a decades-long degradation trend"; the diagnostic question
+is activity/growth rate over time, not first appearance). Parked that for
+now, continued with detection.
+
+Hypothesis: a real bowl-shaped depression should look locally *darker* than
+its surroundings in the orthophoto (shadow from the bowl geometry itself, or
+water pooling) — a signal pure elevation can't see. Computed a "deviation
+from local mean brightness" on the 20250820 RGB orthomosaic (same trick as
+DevFromMeanElev, applied to a grayscale/brightness band instead of
+elevation, resampled to 5cm), calibrated against manual points (now 34,
+up from 19) the same way: window sweep, LOOCV, then — having been burned
+twice by point-level stats not surviving full-raster application — an
+actual full-AOI polygon check against manual points, not just pixel values.
+
+**Data:** `data/raw/20250820/20250820_terra_ppk_rgb_om.tif` (2.12cm RGB
+orthomosaic), 34 manual points, 300 background points.
+
+**Result:** Point-level stats looked excellent (LOOCV recall 85%, window=10m,
+threshold=-2.0, FPR=1%) — but polygon-level full-AOI recall at that same
+threshold/area-cutoff was only 38% (13/34), because at a strict threshold
+the connected "dark core" of many real dolines is smaller than the area
+filter. Checking recall across area cutoffs showed the identical
+threshold-vs-count tradeoff topography had: min_area=0.02 -> 39,812
+candidates at 85% recall; min_area=2.0 -> 24 candidates at 15% recall. No
+free lunch.
+
+Tried combining topographic (window=4m, threshold=-0.2) AND spectral
+(window=10m, threshold=-1.5) as a joint pixel-wise mask, on the theory that
+each channel's noise source (rock crevices vs. individual rock shadows)
+shouldn't correlate, so requiring both should suppress noise
+multiplicatively. Point-level stats looked even better (85% recall, 1% FPR)
+than either alone. Full-raster result: 324 candidates, 15/34 (44%) recall —
+barely better than spectral alone (198 candidates, 38%), and *more*
+candidates despite being an AND of two conditions (looser individual
+thresholds than spectral-alone's strict single threshold let more total
+area through even after intersecting).
+
+**Conclusion:** Every method tried across both sessions — absolute
+threshold, DevFromMeanElev, DepthInSink combo, Geomorphons combo,
+h-minima+watershed, spectral brightness, and topo+spectral combined — hits
+the same wall: candidate count in the "reviewable hundreds" range caps
+recall around 40-65%; recall above 80% means thousands+ of candidates.
+Nothing tested so far breaks this tradeoff. Point-level/sampled statistics
+are now confirmed unreliable predictors of full-raster performance across
+three independent methods — always validate the actual polygon output
+against manual points before trusting a calibration number again.
+
+Given manual mapping is already at 34 points and evidently working well,
+recommending to the user: treat the best current automated output
+(`data/processed/20250820_candidate_dolines_combined.gpkg`, 324 candidates)
+as a cross-check shortlist against manual mapping, not a replacement for it,
+rather than continuing to chase incremental algorithm tuning. Decision
+pending user input.
