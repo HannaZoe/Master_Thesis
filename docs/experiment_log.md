@@ -15,7 +15,17 @@ not blocking the current task.
   a validation/filter criterion once we get to polygon delineation.
 - Correlate doline locations/clustering with mapped geological fault lines
   once detection is working — ties into the karst-vs-permafrost research
-  question. No fault dataset sourced yet.
+  question. Fault dataset now sourced, see 2026-08-22 entry below — digitize
+  Ortner & Kilian (2022) Fig. 7b and test alignment.
+- Test whether doline growth/activity correlates with remotely-sensed
+  snow-cover *thinning date* specifically (not just snowmelt volume/timing
+  or precipitation) — motivated by Küfmann (2013)'s CO2-limited dissolution
+  finding, see 2026-08-22 entry.
+- Split the 30-35 mapped features into an old/stable vs. young/active
+  population by morphometry (Péntek et al. 2007 shape-fitting; Veress 2017
+  diameter/depth/slope baselines) rather than treating them as one
+  homogeneous population — motivated by Grüger & Jerz (2011)'s dating of one
+  doline to >7000 BP, see 2026-08-22 entry.
 
 Entry format:
 
@@ -525,3 +535,58 @@ limitations to fix before the fieldwork rerun: spatial CV block size needs
 revisiting with a larger point set; permutation importance was computed
 in-sample (documented as such, not a bug, but worth a held-out version too);
 no thermal/multispectral available for this date.
+
+---
+
+## 2026-08-22 — Environment setup on laptop; literature review of downloaded papers
+
+**What we did:** First session on a different machine (laptop, not the usual
+tower) — ran `uv sync` fresh, confirmed it installs cleanly (145 packages, no
+PDAL issues, same as documented tower setup). Then read through ~20 PDFs the
+user had already downloaded into their Downloads folder (papers gathered for
+this thesis but not yet read/synthesized), split across two parallel review
+passes, filtering out unrelated personal/administrative files mixed into the
+same folder.
+
+**Data:** Papers listed in `docs/thesis/causation_hypothesis.md` references
+section; also read (lower relevance, not written up separately): Rittig
+(2012) MSc thesis, Clayton (1964) on ice-surface "karst," Tuffen (2010) on
+deglaciation-triggered volcanism, Dou et al. (2015) OBIA+genetic-algorithm
+sinkhole detection, Yavariabdi et al. (2023) "SinkholeNet" (RGB+slope fusion
+CNN), and the user's own prior Dead Sea sinkhole work (a failed U-Net
+attempt, a snow-depth/TPI terrain study on this same Zugspitze UAV data, and
+a Dead Sea sinkhole-mapping poster).
+
+**Thought:** Read as a critical scientist, not a summarizer — for each paper,
+ask whether it actually bears on (a) automated detection, (b) the
+karst-vs-permafrost causation question, (c) doline morphometry/classification,
+or (d) geohazard assessment, and say plainly when it doesn't.
+
+**Result:** Wrote up a composite causation hypothesis (see
+`docs/thesis/causation_hypothesis.md`) — the "karst or permafrost" framing
+was too coarse; site-specific evidence (Gude & Barsch 2005's documented
+thermokarst collapse in a Zugspitzplatt doline; Küfmann 2013's CO2-limited,
+snow-thinning-timing-dependent dissolution; Wetzel 2004's active fast karst
+drainage; Grüger & Jerz 2011's >7000 BP dating of one doline; Ortner & Kilian
+2022's named fault sets crossing the plateau) supports a more specific
+composite: fault-initiated (inception/seismic doline) features, enlarged by
+snowmelt-thinning-driven CO2 corrosion, with a subset locally reactivated by
+melting relict ground ice — plausibly a mixed old/young population, not one
+homogeneous group.
+
+On detection: SinkholeNet's RGB+slope fusion (not RGB alone) is the most
+promising unaddressed lead for the recall-vs-false-positive wall hit five
+times already in this project — but the user's own prior U-Net attempt on
+Dead Sea sinkholes degenerated to a near-constant predictor with a
+comparably small label set (~30 non-exhaustive labels), a real cautionary
+data point against training a CNN from scratch here too. A frozen
+self-supervised/foundation-model backbone (e.g. DINOv2) or promptable
+zero-shot model (SAM2) fine-tuned lightly on far fewer labels was flagged as
+a lower-risk alternative, not yet tried.
+
+**Conclusion:** Causation hypothesis write-up complete
+(`docs/thesis/causation_hypothesis.md`), including full citations and three
+concrete open items. Detection-method and morphometric-split ideas added to
+the parking lot above, not yet run. Next, pending user direction: either the
+fault-alignment GIS test, the morphometric old/young split, or a first pass
+at an RGB+slope fused detector.
