@@ -590,3 +590,57 @@ concrete open items. Detection-method and morphometric-split ideas added to
 the parking lot above, not yet run. Next, pending user direction: either the
 fault-alignment GIS test, the morphometric old/young split, or a first pass
 at an RGB+slope fused detector.
+
+---
+
+## 2026-08-23 — Cross-checking hillshade-flagged candidates against the susceptibility model
+
+**What we did:** User set up a real LiDAR hillshade in QGIS (`data/interim/
+20250820_terra_ppk_lidar_dsm_clip_hillshade.tif`, generated via whitebox
+`Hillshade`) and, comparing it against her manual mapping, found far more
+depression-looking shapes than mapped features — updated `Sinkholes.shp`
+34 -> 68 points, and created a new `Suspicious_Areas.shp` (24 polygons,
+each tagged by her own confidence: `Surface Depression`, `Surface
+Depression?`, `?`, `??`, or a non-doline process — `Landslide`, `Gullys`).
+Added a cross-check section to `notebooks/05_susceptibility_model_20250820.ipynb`:
+sampled `local_relief` and `brightness_dev` at all manual points, took
+zonal min/max of `local_relief`, `brightness_dev`, and the RF susceptibility
+raster within each `Suspicious_Areas` polygon, and computed each polygon's
+percentile rank against both the manual-doline distribution and the random
+background distribution.
+
+**Thought:** a hillshade shadow alone is weak evidence — boulders,
+crevices, and relief inversion (a pit and a mound can shade near-identically
+depending on light direction) produce the same visual signature as a real
+doline at 5cm resolution, which is exactly why every automated method this
+project has tried struggled with false positives. Checking whether
+independent topographic/spectral signals agree is a cheap second opinion
+before trusting a hillshade-only call.
+
+**Result:** the vs.-background percentile was saturated near 100% for
+nearly everything, including features the user had already correctly
+identified as non-dolines (`Landslide`, `Gullys`) — not discriminating,
+since background points are mostly flat terrain and anything anomalous
+beats them. The vs.-*manual-dolines* percentile was informative and told
+an uncomfortable story: the two `Landslide` polygons scored 79% and 96%,
+and the one `Gullys` polygon scored 87% — as "doline-like" by this model as
+her confident `Surface Depression` calls (56-99%). **The model cannot
+currently distinguish a doline from a landslide scarp or a gully using
+topography + brightness alone** — both read as "locally anomalous, dark."
+Her own `?` (very uncertain) calls mostly scored low against manual dolines
+(7-33%), consistent with her instinct — but the three `??` polygons scored
+surprisingly high (69-96%), higher than several of her own confident calls.
+
+**Conclusion:** Real, useful negative result, not a validation of the
+model as a detector — it confirms the model finds "something anomalous
+here" reasonably well but cannot yet say *what kind* of feature it is.
+This is exactly why the field protocol (wall texture, joint orientation,
+HCl test) exists — process discrimination has to come from the field, not
+from topography/spectral RS alone with the current covariate set. Flagged
+the three high-scoring `??` polygons for field priority (centroids roughly
+47.4143°N/11.0039°E, 47.4143°N/11.0037°E, 47.4150°N/11.0013°E) — either
+under-rated real candidates or a new false-positive category (e.g.
+scree/talus) worth adding to the field observation checklist. Internal
+consistency between her own labels and the model's ranking is decent but
+not clean, which is honest and useful to know before leaning on either one
+alone.
