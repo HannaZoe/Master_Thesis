@@ -44,6 +44,9 @@ outputs/maps/*
 Thumbs.db
 .DS_Store
 
+# Local editing backups
+*.odp.bak
+
 # VS Code (keep shared settings, ignore personal ones)
 .vscode/*
 !.vscode/settings.json
