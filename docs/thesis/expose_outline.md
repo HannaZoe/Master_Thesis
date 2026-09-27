@@ -95,20 +95,6 @@ Flow:
   - Bavaria historical DOP orthophoto archive, 2003-2024 (already scripted
     — `scripts/download_bavaria_dop.py`).
   - Sentinel-1 (InSAR, for RQ2 surface change).
-  - `[OPEN, checked 2026-09-22: CORONA declassified imagery. Resolution
-    only clears the <3 m bar for the late missions — KH-4A ~2.75 m
-    (1962-69), KH-4B ~1.8 m at frame center degrading to ~2.7 m at frame
-    edges (1967-72); everything earlier (KH-1 to KH-4) is 7.6-12 m, not
-    usable. Actual scene-level coverage over the Zugspitzplatt could NOT
-    be confirmed — USGS's public "coverage map" KML turned out to be a
-    single global placeholder polygon, not real per-scene footprints, so
-    it answers nothing. CORONA's primary targets were denied/Eastern-bloc
-    areas; Western/NATO Europe coverage exists but was incidental, so
-    there's genuine uncertainty this site was flown at all. Needs an
-    actual interactive EarthExplorer search (free account, draw AOI,
-    filter Declassified Data -> Declass 1, check frame previews) — a
-    5-minute check, but requires the JS map UI. Treat as a bonus data
-    source if it pans out, not a committed one for the exposé.]`
   - Zugspitze summit station meteorological data (precipitation,
     temperature, snow).
 - The manually confirmed dolines (`data/manual/Sinkholes.shp`, now expanded
@@ -172,7 +158,11 @@ Wagner (2022) as the structural template.
 2. A concrete post-fieldwork doline count, and whether there's a single
    standout cave/shaft example worth naming in section 1.
 3. UAV sensor band/resolution specifics per epoch, for section 3.
-4. Whether CORONA imagery actually has usable coverage over the
-   Zugspitzplatt (resolution checked 2026-09-22 — only KH-4A/KH-4B,
-   1967-72, clear the <3 m bar; coverage itself still unconfirmed, needs a
-   manual EarthExplorer search).
+Parked, not in the exposé: CORONA declassified imagery. Resolution only
+clears a 3 m bar for the late missions (KH-4A ~2.75 m 1962-69, KH-4B ~1.8 m
+at frame center degrading to ~2.7 m at edges, 1967-72); actual scene
+coverage over the Zugspitzplatt is unconfirmed (checked 2026-09-22 — USGS's
+public "coverage map" KML is a single global placeholder polygon, not real
+footprints; a real answer needs an interactive EarthExplorer search).
+Revisit later as a bonus RQ2 data source if there's time, not a committed
+one.
