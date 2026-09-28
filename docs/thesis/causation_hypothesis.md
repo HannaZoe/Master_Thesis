@@ -142,12 +142,18 @@ goal, not an afterthought.
   Alps, Germany). *Geomorphology*, 66, 85-93.
 - Wetzel, K.-F. (2004). On the hydrology of the Partnach area in the
   Wetterstein Mountains (Bavarian Alps). *Erdkunde*, 58(2), 172-186.
-- Küfmann, C. (2013). Solution dynamics at the rock/snow interface during
+- Küfmann, C. (2014). Solution dynamics at the rock/snow interface during
   the ablation period in the subnival karst of the Wetterstein Mountains.
-  [Manuscript; final publication venue not confirmed from the PDF itself —
-  verify before citing in the thesis.]
-- Grüger, E. & Jerz, H. (2010/2011). Untersuchung einer Doline auf dem
-  Zugspitzplatt. *E&G Quaternary Science Journal*, 59(1-2), 66-75.
+  Zeitschrift für Geomorphologie, 58(1), 37-57. [Venue confirmed
+  2026-09-28 via lit_doline_dynamics_snow.md literature pass; DOI is
+  dated 2013, hence the earlier in-text citations as "2013" — reconcile
+  which year to cite before submission.]
+- Grüger, E. & Jerz, H. (2011). Untersuchung einer Doline auf dem
+  Zugspitzplatt: Ein palynologischer Beitrag zur holozänen
+  Gletschergeschichte im Wettersteingebirge. *E&G Quaternary Science
+  Journal*, 59(1-2), 66-75. [Year corrected 2026-09-28 from "2010/2011"
+  after direct verification — the paper itself is 2011; "2010" had bled
+  in from a separate linked PANGAEA dataset record by the same authors.]
 - Ortner, H. & Kilian, S. (2022). Thrust tectonics in the Wetterstein and
   Mieming mountains, and a new tectonic subdivision of the Northern
   Calcareous Alps. *International Journal of Earth Sciences*, 111, 543-571.

@@ -644,3 +644,84 @@ scree/talus) worth adding to the field observation checklist. Internal
 consistency between her own labels and the model's ranking is decent but
 not clean, which is honest and useful to know before leaning on either one
 alone.
+
+
+---
+
+## 2026-09-28 — Exposé drafting session: literature deep-dives + full Sections 1-3 draft
+
+**What we did:** Full-day collaborative drafting session for the MSc
+exposé, modeled on the supervisor-provided Wagner (2022) example. Started
+from the outline/causation-hypothesis work already in this folder, then
+went paragraph-by-paragraph through Sections 1 (Framing and rationale), 2
+(Study area), and 3 (Data & Methods), fact-checking every citation against
+primary sources rather than trusting earlier secondhand summaries.
+
+Along the way, ran eight additional background literature searches (see
+`lit_zugspitze_geology.md`, `lit_thermokarst.md`, `lit_cold_climate_karst.md`,
+`lit_doline_dynamics_snow.md`, `lit_frost_weathering_karst.md`,
+`lit_uav_change_detection_methods.md`, `lit_thermal_uav_ground_ice.md`,
+`lit_insar_feasibility.md`) covering: Zugspitze deglaciation chronology,
+thermokarst mechanisms and Alpine (not just Arctic) precedent, whether
+dissolution can proceed under permafrost, doline reactivation dynamics and
+snow-doline interaction, frost weathering specifically in the same
+carbonate facies group as the Zugspitzplatt bedrock, UAV/LiDAR
+change-detection precision limits, thermal UAV feasibility for ground-ice
+detection, and Sentinel-1 InSAR feasibility at doline scale.
+
+**Data:** No new project data analysis - this was a literature and writing
+session. Did cross-check the actual field-note geopackage from the August
+2026 campaign (`sinkholes_lower.zip` in Downloads - 31 dimensioned points,
+plus photos including the ~16 m "cave sinkhole" feature) for context, and
+verified the real UAV sensor manifest per epoch against `data/CLAUDE.md`
+rather than assuming uniform coverage.
+
+**Result:**
+- Causation framing held up well under the extra literature passes and got
+  sharper, not weaker: the strongest new addition is Mix & Kufmann (2012,
+  Zahmer Kaiser plateau) - direct Northern Calcareous Alps precedent for a
+  single doline population containing simultaneously active and dormant
+  members, which is exactly the "uneven population" argument this project
+  needed evidence for. Also found a 2026 update to the Krautblatter ERT
+  work (Scandroglio et al.) giving a current, quantitative permafrost-limit
+  figure (~2350 m) for the Zugspitze.
+- Real negative/cautionary findings worth remembering for the actual
+  methods work, not just the expose: UAV-SfM epochs must be co-aligned
+  together rather than processed independently (de Haas et al. 2021 found
+  up to ~1 m artefactual vertical offset otherwise, which would swamp a
+  doline-scale signal); Sentinel-1 InSAR is not feasible for doline-scale
+  subsidence detection in this terrain (~20 m practical resolution vs.
+  0.3-few m target features, no precedent anywhere for satellite InSAR at
+  this scale); thermal UAV has no validated precedent as a quantitative
+  ground-ice proxy anywhere, and closed-depression cold-air pooling is a
+  known confound that could dominate any doline thermal signal.
+- Fixed several citation errors caught by direct verification rather than
+  trusting secondhand summaries: Gruger & Jerz is 2011 not "2010/2011"
+  (the 2010 had bled in from a separate linked dataset record); the
+  Gutierrez et al. PDF filename encodes 2007 (Online First DOI) but the
+  correct citable year is 2008 (volume assignment); Ortner & Kilian's
+  title was missing its final clause.
+- Hanna's own field observation (most dolines are shallow with no visible
+  ice at the floor, only the cave-type features are deep) led to a
+  sharper, testable version of the thermokarst argument: the mechanism is
+  most plausible for the deep/cave subset specifically, not the population
+  as a whole - consistent with, not contradicted by, Gude & Barsch's own
+  point that relict ice persists because it's insulated under debris
+  cover. Drafted but not yet pasted into the working document.
+- Full Sections 1-3 drafted and iterated through many rounds of critical
+  review (accuracy of the collapse/suffosion/sagging framing, punctuation,
+  length, spelling consistency, reference-list/in-text-citation matching).
+  Current body length ~1285 words vs. Wagner's ~917-word equivalent for
+  the same three sections - about 40% longer, concentrated almost entirely
+  in one paragraph in Section 1 (see `expose_outline.md` open item 1 for
+  the specific trim recommended).
+
+**Conclusion:** Exposé is close to submission-ready. Session ended with a
+list of ~10 concrete open items (title page place name, one missing
+reference entry, a length trim, spelling consistency pass, a punctuation
+fix, a duplicate citation, one unconfirmed institutional name, two typos,
+and the pending thermokarst paragraph revision) - all logged in
+`expose_outline.md` for the next session rather than left implicit. Working
+docx saved as `expose_draft_2026-09-28.docx` (dated snapshot, since the
+live `expose_draft.docx` was open/locked at save time) - reconcile the two
+next session.
