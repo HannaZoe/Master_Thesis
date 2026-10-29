@@ -79,6 +79,16 @@ brightness-based snow warning per file — both heuristics, not proof; check
 the server, not real 20cm detail — treat pre-2006 dates as coarser than the
 file suggests.
 
+## August 2026 field-verification data lives in `fieldwork/`, not here
+
+The field campaign's own data (GPS points + notes from the Aug 2026 trip,
+raw device exports and the cleaned/parsed versions) is organized under
+`fieldwork/field_data/` instead of `data/raw/`+`data/manual/` — campaign
+data grouped with the rest of that trip's material (presentation, QField
+project) rather than split across `data/`'s processing-stage folders. Same
+raw-stays-local-gitignored / cleaned-gets-tracked policy as here, just a
+different location. See `fieldwork/CLAUDE.md`.
+
 ## Where the actual data lives
 
 Local disk only, directly under `data/raw/` etc. on this machine (the tower).

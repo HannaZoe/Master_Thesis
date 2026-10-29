@@ -1,7 +1,9 @@
 """Import and clean the August 2026 field-verification notes.
 
 Two independent sources from the same field day (2026-08-27), both copied
-raw/unmodified to data/raw/20260827_field_notes/:
+raw/unmodified to fieldwork/field_data/raw/ (same raw-stays-local-and-
+gitignored policy as data/raw/, just organized under fieldwork/ since this
+is campaign data -- see fieldwork/CLAUDE.md):
 
 1. A field-notes app export (`sinkholes_lower.zip`), 31 GPS pins with
    fairly regular free-text dimension notes -- not the QField project built
@@ -14,9 +16,10 @@ raw/unmodified to data/raw/20260827_field_notes/:
    generic pattern risks silently guessing wrong on real measurement data.
 
 Both get parsed into structured depth/width fields where the text is
-genuinely unambiguous, written to data/manual/ (tracked in git, same
-exception as Sinkholes.shp/Suspicious_Areas.shp). Anything ambiguous stays
-null with a flag explaining why, rather than a guessed number.
+genuinely unambiguous, written to fieldwork/field_data/ (tracked in git,
+same exception as data/manual/ -- see data/CLAUDE.md and fieldwork/CLAUDE.md).
+Anything ambiguous stays null with a flag explaining why, rather than a
+guessed number.
 """
 
 import re
@@ -27,9 +30,9 @@ import geopandas as gpd
 import pandas as pd
 
 ZIP_SOURCE = Path(r"C:\Users\Hanna\Downloads\sinkholes_lower.zip")
-RAW_DIR = Path("data/raw/20260827_field_notes")
-OUT_LOWER = Path("data/manual/field_verification_20260827_lower.gpkg")
-OUT_HIGHER = Path("data/manual/field_verification_20260827_higher.gpkg")
+RAW_DIR = Path("fieldwork/field_data/raw")
+OUT_LOWER = Path("fieldwork/field_data/field_verification_20260827_lower.gpkg")
+OUT_HIGHER = Path("fieldwork/field_data/field_verification_20260827_higher.gpkg")
 
 # ---------------------------------------------------------------------------
 # Source 1: field-notes app export ("lower" precision GPS)

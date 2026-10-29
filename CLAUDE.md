@@ -149,13 +149,13 @@ Point VS Code's Python interpreter at `.venv\Scripts\python.exe` in this folder.
 ```
 Master/
 ├── data/            raw / interim / processed — see data/CLAUDE.md, not tracked in git
+├── fieldwork/       Aug 2026 field campaign material (presentation, QField
+│                    project, field-collected data) — see fieldwork/CLAUDE.md
 ├── src/master_thesis/   installable package — see src/CLAUDE.md
 ├── notebooks/       exploratory analysis (Jupyter)
 ├── qgis/projects/   .qgz/.qgs project files (tracked in git — small XML/sqlite)
 ├── scripts/         canonical, run-this-to-reproduce pipeline scripts, once
-│                    a method is validated (not notebooks) — doesn't exist
-│                    yet, add when the first method graduates out of
-│                    notebooks/ calibration
+│                    a method is validated (not notebooks)
 ├── outputs/         figures/ and maps/ — regenerable, gitignored
 ├── docs/thesis/     the actual thesis writing
 ├── docs/experiment_log.md   running record of analysis attempts — see Working conventions

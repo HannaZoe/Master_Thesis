@@ -745,10 +745,13 @@ Hanna had prepared) plus `sinkholes_lower.zip` in Downloads:
    whether to set up the actual cloud sync for next time, now that the
    project schema is confirmed to work in practice.
 
-Copied both raw exports unmodified to `data/raw/20260827_field_notes/`,
-then wrote `scripts/import_field_notes.py` to parse the free text into
+Copied both raw exports unmodified to `fieldwork/field_data/raw/`, then
+wrote `scripts/import_field_notes.py` to parse the free text into
 structured `depth_m`/`width1_m`/`width2_m` fields — outputs
-`data/manual/field_verification_20260827_lower.gpkg` and `..._higher.gpkg`.
+`fieldwork/field_data/field_verification_20260827_lower.gpkg` and
+`..._higher.gpkg`. (Originally landed in `data/raw/`+`data/manual/`,
+relocated under `fieldwork/` same day for campaign-based organization —
+see `fieldwork/CLAUDE.md`.)
 
 **Thought:** the notes-app text was regular enough ("{H}m height / {W1} and
 {W2} wide") to parse with a verified regex. The QField notes were typed in
