@@ -3,17 +3,22 @@
 Two independent sources from the same field day (2026-08-27), both copied
 raw/unmodified to fieldwork/field_data/raw/ (same raw-stays-local-and-
 gitignored policy as data/raw/, just organized under fieldwork/ since this
-is campaign data -- see fieldwork/CLAUDE.md):
+is campaign data -- see fieldwork/CLAUDE.md). "lower"/"higher" in both
+sources' names refer to which part of the AOI was walked, not GPS precision
+(an earlier version of this docstring got that wrong) -- Hanna knows who
+recorded what, so `person` isn't carried into the final output, but the
+AOI section is kept as `aoi_section`.
 
 1. A field-notes app export (`sinkholes_lower.zip`), 31 GPS pins with
    fairly regular free-text dimension notes -- not the QField project built
-   earlier this project.
+   earlier this project. Covers the lower part of the AOI.
 2. The QField project's own exported layer (`fieldwork_points_higher.shp`),
    29 points -- so QField *was* used in the field after all, just shared as
-   a local export rather than synced via QFieldCloud. Notes here are much
-   rougher (typed in the field, lots of typos, inconsistent/implicit units)
-   and were read and interpreted by hand rather than regex-parsed, since a
-   generic pattern risks silently guessing wrong on real measurement data.
+   a local export rather than synced via QFieldCloud. Covers the higher
+   part of the AOI. Notes here are much rougher (typed in the field, lots
+   of typos, inconsistent/implicit units) and were read and interpreted by
+   hand rather than regex-parsed, since a generic pattern risks silently
+   guessing wrong on real measurement data.
 
 Both get parsed into structured width/length/depth fields where the text is
 genuinely unambiguous, then merged into one analyst-ready table,
@@ -21,9 +26,12 @@ genuinely unambiguous, then merged into one analyst-ready table,
 exception as data/manual/ -- see data/CLAUDE.md and fieldwork/CLAUDE.md):
 `type` is a clean category with no embedded "?" -- that signal moves to its
 own `field_confidence` column instead -- `notes` keeps every original
-comment verbatim, and `flag` surfaces anything worth a second look (inferred
-units, vague/incomplete notes, a point marked wrong by a later note) rather
-than silently guessing a number that isn't actually in the source text.
+comment, spelling-corrected (`NOTE_FIXES` below; the two genuinely ambiguous
+corrections were confirmed with Hanna directly rather than guessed), and
+`flag` surfaces anything worth a second look (inferred units, vague/
+incomplete notes, a point marked wrong by a later note, one known-bad
+geometry already present in the raw QField export) rather than silently
+guessing.
 """
 
 import re
@@ -167,8 +175,6 @@ def parse_note_lower(title: str, note: str, uuid: str) -> dict:
 def build_lower() -> gpd.GeoDataFrame:
     src_gpkg = RAW_DIR / "sinkholes" / "notes.gpkg"
     pts = gpd.read_file(src_gpkg, layer="notes_point")
-    attachments = gpd.read_file(src_gpkg, layer="notes_attachments")
-    photo_counts = attachments.groupby("note_uuid").size().rename("n_photos")
 
     parsed = pts.apply(
         lambda row: parse_note_lower(row["title"], row["note"], row["uuid"]),
@@ -176,8 +182,6 @@ def build_lower() -> gpd.GeoDataFrame:
         result_type="expand",
     )
     out = pd.concat([pts[["uuid", "title", "note", "timestamp", "geometry"]], parsed], axis=1)
-    out = out.merge(photo_counts, left_on="uuid", right_index=True, how="left")
-    out["n_photos"] = out["n_photos"].fillna(0).astype(int)
     out = out.rename(columns={"note": "raw_note"})
     return gpd.GeoDataFrame(out, geometry="geometry", crs=pts.crs)
 
@@ -244,26 +248,63 @@ HIGHER_TYPE_MAP = {
     "Other": ("Cave Doline", "confirmed"),
     "Gully": ("Gully", "confirmed"),
 }
-PERSON_NORMALIZE = {"Ha": "Hanna", "Hanna": "Hanna"}
+# Spelling fixes -- plain typos only (missing/transposed letters, autocorrect
+# mangling), never a reworded paraphrase. Two were genuinely ambiguous
+# (opposite possible meanings) and were confirmed with Hanna directly rather
+# than guessed: "lite of frost weathering" -> "a lot of" (not "a little of"),
+# and "xace" -> "space". Intentional German words (schotter, Breite, sek,
+# tief, "3er") are left alone -- not errors, deliberate code-switching.
+LOWER_NOTE_FIXES = {
+    "{43ac47e2-00ca-4927-aaaa-3b635be911b1}": "3m height \n4,20m and 5,20m wide",
+}
+HIGHER_NOTE_FIXES = {
+    0: "63cm deep\n130 * 157 cm width\nGully behind it, lots of medium-sized gravel\n",
+    1: "This is 63cm sinkhole, it was marked wrong",
+    3: "4 dolines close by, all schotter filled\n84 deep\n184*2",
+    5: "165*150\n52 depth\n\n\nUse this data to calculate roughness",
+    6: (
+        "Cave! Really deep, easily 15-20m\n"
+        "On the summit side a lot of rock, other side more loose material"
+    ),
+    7: "14,4 seconds rock falling",
+    8: "15,4 m depth measurable\nBreite 10m * 10m",
+    9: "In the middle of the hiking path\nDepth 180cm\n5,50*3,90",
+    10: (
+        "Cave!!!\n\nMuch less angled than the other one, rillenkarst\n\n\n9,5 sek rock throw\n8m*??"
+    ),
+    11: "86cm deep\n2m*90\nReally clear cut, almost no small rubble, a lot of frost weathering",
+    14: (
+        "11,8 m width\n28.8 m deep\n\nCave!!\n"
+        "Really deep, less angular, quite very vertical\n\n8s drop\n\n\n"
+    ),
+    21: "3er cluster\n210 deep\n460*460 roughly round\n",
+    23: "Cave, 5s drop, long silence\n4m long, smaller space tho\n2,60 wide",
+    26: (
+        "17 5 wide 39m\nHuge multiple complex karst dolines\n\n"
+        "Birds are nesting in there\nAltered rock, super complex"
+    ),
+}
 
 
 def build_unified(lower: gpd.GeoDataFrame, higher: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Merge both sources into one clean, analyst-ready table.
 
-    No question marks in `type` -- that signal moves to its own
-    `field_confidence` column instead of being baked into the category
-    string. Every original comment is preserved verbatim in `notes`,
+    No `person` column -- Hanna already knows who recorded what, no need to
+    carry it. `aoi_section` ("lower"/"higher") replaces the old per-tool
+    `source` label, matching what those names actually meant. No question
+    marks in `type` -- that signal moves to its own `field_confidence`
+    column instead of being baked into the category string. `notes` is
+    spelling-corrected (typos only, never reworded) but otherwise verbatim,
     nothing summarized away. `flag` carries forward anything worth a second
-    look (inferred units, vague/incomplete notes, a point marked wrong, a
-    doline sitting in the hiking path) -- genuinely mixed in nature
-    (sometimes about whether to trust the numbers, sometimes just
-    noteworthy context), left as one column rather than forcing a false
-    separation.
+    look (inferred units, vague/incomplete notes, a point marked wrong, one
+    corrupted geometry) -- genuinely mixed in nature (sometimes about
+    whether to trust the numbers, sometimes just noteworthy context), left
+    as one column rather than forcing a false separation.
     """
     lower_rows = []
     for row in lower.itertuples(index=False):
         type_, confidence = LOWER_TYPE_MAP.get(row.title, (None, None))
-        note = row.raw_note
+        note = LOWER_NOTE_FIXES.get(row.uuid, row.raw_note)
         if row.title == "Sinkhole? (very small)" and isinstance(note, str):
             note = f"[very small] {note}"
 
@@ -283,41 +324,48 @@ def build_unified(lower: gpd.GeoDataFrame, higher: gpd.GeoDataFrame) -> gpd.GeoD
 
         lower_rows.append(
             {
-                "source": "notes_app",
+                "aoi_section": "lower",
                 "type": type_,
                 "field_confidence": confidence,
                 "width_m": row.width1_m,
                 "length_m": row.width2_m,
                 "depth_m": row.depth_m,
-                "person": None,
                 "notes": note,
                 "flag": flag,
-                "n_photos": row.n_photos,
                 "timestamp": row.timestamp,
                 "geometry": row.geometry,
             }
         )
 
     higher_rows = []
-    for row in higher.itertuples(index=False):
+    # enumerate(), not row.source_fid -- HIGHER_NOTE_FIXES/HIGHER_PARSED are keyed
+    # by array position (0-28), while source_fid is the shapefile's own 1-indexed
+    # `fid` attribute (1-29); mixing the two up silently applied every note fix to
+    # the wrong row on the first attempt here, caught only by re-reading the output.
+    for position, row in enumerate(higher.itertuples(index=False)):
         type_, confidence = HIGHER_TYPE_MAP.get(row.type, (None, None))
+        note = HIGHER_NOTE_FIXES.get(position, row.raw_note)
 
         flag = row.review_flag
         if flag is None and row.unit_inferred:
             flag = "Unit inferred from magnitude, not stated explicitly in the note."
+        if row.source_fid == 29:
+            # Already-bad geometry in the raw QField export (199257, 6974687 --
+            # nowhere near the site), confirmed with Hanna: keep the row and the
+            # coordinates as-is, just flag it rather than silently trust the map.
+            bad_geom_note = "Geometry is corrupted in the raw export (not a usable location)."
+            flag = f"{flag} {bad_geom_note}" if flag else bad_geom_note
 
         higher_rows.append(
             {
-                "source": "qfield",
+                "aoi_section": "higher",
                 "type": type_,
                 "field_confidence": confidence,
                 "width_m": row.width1_m,
                 "length_m": row.width2_m,
                 "depth_m": row.depth_m,
-                "person": PERSON_NORMALIZE.get(row.person, row.person),
-                "notes": row.raw_note,
+                "notes": note,
                 "flag": flag,
-                "n_photos": 0,
                 "timestamp": row.created_at,
                 "geometry": row.geometry,
             }
@@ -365,7 +413,7 @@ def main() -> None:
     unified.to_file(OUT_UNIFIED, driver="GPKG")
 
     print(f"wrote {len(unified)} points to {OUT_UNIFIED}")
-    print(unified["source"].value_counts().to_string())
+    print(unified["aoi_section"].value_counts().to_string())
     print("\ntype (no question marks):")
     print(unified["type"].value_counts(dropna=False).to_string())
     print(

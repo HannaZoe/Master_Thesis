@@ -22,20 +22,24 @@ split — everything about this one trip lives together.
   - `field_data/fieldwork_annotations.gpkg` — **tracked in git**, same
     exception as `data/manual/` (small, original, not regenerable). One
     merged, analyst-ready table (60 points, both sources combined), output
-    of `scripts/import_field_notes.py`. Schema: `source` (`notes_app`/
-    `qfield`), `type` (clean category — `Doline`, `Cave Doline`,
-    `Rillenkarst`, `Gully`, no embedded "?"), `field_confidence`
-    (`confirmed`/`uncertain` — where the "?" went instead),
-    `width_m`/`length_m`/`depth_m` (the two horizontal measurements and the
-    vertical one — `depth`, not `height`, matching project convention even
-    though the raw field notes said "height"), `person`, `notes` (every
-    original comment, verbatim, nothing summarized away), `flag` (anything
-    worth a second look — inferred units, vague/incomplete notes, a point
-    marked wrong by a later note — `None` means a clean read). Read
-    `scripts/import_field_notes.py`'s module docstring and the
-    2026-10-29 `docs/experiment_log.md` entry before trusting a value —
-    several rows are deliberately null with a `flag` explaining why, and
-    that's the honest result, not a bug to fix.
+    of `scripts/import_field_notes.py`. Schema: `aoi_section` (`lower`/
+    `higher` — which part of the AOI was walked, not a data-quality
+    distinction; no `person` column, Hanna knows who recorded what),
+    `type` (clean category — `Doline`, `Cave Doline`, `Rillenkarst`,
+    `Gully`, no embedded "?"), `field_confidence` (`confirmed`/`uncertain`
+    — where the "?" went instead), `width_m`/`length_m`/`depth_m` (the two
+    horizontal measurements and the vertical one — `depth`, not `height`,
+    per Hanna's preference and matching project convention, even though the
+    raw field notes said "height"), `notes` (every original comment,
+    spelling-corrected but otherwise verbatim — see `NOTE_FIXES` in the
+    script; two genuinely ambiguous corrections were confirmed with Hanna
+    rather than guessed), `flag` (anything worth a second look — inferred
+    units, vague/incomplete notes, a point marked wrong by a later note,
+    one point with a corrupted geometry already in the raw QField export —
+    `None` means a clean read). Read `scripts/import_field_notes.py`'s
+    module docstring and the 2026-10-29 `docs/experiment_log.md` entry
+    before trusting a value — several rows are deliberately null with a
+    `flag` explaining why, and that's the honest result, not a bug to fix.
 
 Not yet decided: whether/how to merge the field-verified locations that
 don't match anything in `data/manual/Sinkholes.shp` /

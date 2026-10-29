@@ -735,15 +735,20 @@ project for the first time, from two independent sources for the same
 field day (2026-08-27), both found via `data/fieldwork/` (a staging folder
 Hanna had prepared) plus `sinkholes_lower.zip` in Downloads:
 
-1. A field-notes app export ("lower" GPS precision) — 31 pins with
-   free-text dimension notes, 41 linked photos.
+1. A field-notes app export (covering the "lower" part of the AOI) — 31
+   pins with free-text dimension notes, 41 linked photos.
 2. **The QField project's own exported layer** (`fieldwork_points_higher.shp`,
-   "higher" GPS precision) — 29 points, schema exactly matching the QField
-   project built earlier this project (`person`/`type`/`notes`/lat/lon). So
-   that project *was* used in the field after all — it just never got
-   synced via QFieldCloud, only shared as a local export. Worth revisiting
-   whether to set up the actual cloud sync for next time, now that the
-   project schema is confirmed to work in practice.
+   covering the "higher" part of the AOI) — 29 points, schema exactly
+   matching the QField project built earlier this project
+   (`person`/`type`/`notes`/lat/lon). So that project *was* used in the
+   field after all — it just never got synced via QFieldCloud, only shared
+   as a local export. Worth revisiting whether to set up the actual cloud
+   sync for next time, now that the project schema is confirmed to work in
+   practice.
+
+   (Correction: "lower"/"higher" in both file names refer to which part of
+   the AOI was walked, not GPS precision as first assumed here — fixed
+   after Hanna clarified, see the 2026-10-29 follow-up entry below.)
 
 Copied both raw exports unmodified to `fieldwork/field_data/raw/`, then
 wrote `scripts/import_field_notes.py` to parse the free text into
@@ -832,3 +837,39 @@ Python — fixed with `pd.isna()`. Only affected the flag *text* for one row
 another instance of the same lesson this project keeps relearning: verify
 by reading real output, don't trust that a condition does what it looks
 like it does.
+
+**Second follow-up, same day:** per Hanna's direct feedback on
+`fieldwork_annotations.gpkg` —
+
+- Dropped `person` (she already knows who recorded what) and `n_photos`.
+- **Corrected a real misunderstanding**: "lower"/"higher" in the source
+  file names (`sinkholes_lower.zip`, `fieldwork_points_higher.shp`) refer
+  to which part of the AOI was walked, not GPS precision as assumed
+  throughout this entry above and in `fieldwork/CLAUDE.md` until now.
+  Renamed the `source` column to `aoi_section` with values `lower`/`higher`
+  accordingly, and corrected the stale "GPS precision" wording above rather
+  than leave it — a wrong assumption written down confidently is worse than
+  no note at all.
+- Fixed real spelling errors in `notes` (missing letters, autocorrect
+  mangling — e.g. "sinkhoke"→"sinkhole", "calvulate rozbdess"→"calculate
+  roughness") — typo fixes only, never a reworded paraphrase. Two were
+  genuinely ambiguous with opposite possible readings and were **confirmed
+  with Hanna directly rather than guessed**: "lite of frost weathering"
+  meant "a lot of" (not "a little of" — the opposite reading would have
+  undercut the frost-weathering observation entirely), and "smaller xace
+  tho" meant "smaller space".
+- **Found a second real data-quality issue while verifying**: the very
+  last QField point (the "1m depth / 440xm" one) has a corrupted geometry
+  already present in the original raw export (199257, 6974687 — nowhere
+  near the site) — not something introduced during processing. Per Hanna:
+  flagged in `flag`, coordinates left as-is rather than nulled or the row
+  dropped.
+- **Caught and fixed one more real bug introduced while making these
+  changes**: the new note-spelling-fix dictionary was keyed by array
+  position (0-28, matching the existing `HIGHER_PARSED` convention) but
+  looked up using `row.source_fid`, the shapefile's own 1-indexed `fid`
+  attribute (1-29) — an off-by-one mismatch that silently applied every
+  correction to the wrong row. Only caught by re-reading the full output
+  table side by side with the originals after the "fix," not by trusting
+  that the code ran without error. Switched the lookup to `enumerate()`
+  instead of the row's own fid field.
