@@ -811,3 +811,24 @@ Also not yet done: resolving the multi-point cave clusters into single
 features, and the "use this data to calculate roughness" intent Hanna
 flagged in her own field notes (point 5 of the QField set) — both are real
 next steps, not today's task.
+
+**Follow-up, same day:** relocated the raw + cleaned data from
+`data/raw/`+`data/manual/` to `fieldwork/field_data/` (campaign-based
+organization, see `fieldwork/CLAUDE.md`), then merged the two per-source
+GeoPackages into one analyst-ready `fieldwork_annotations.gpkg` per Hanna's
+request: `type` is now a clean category with no "?" (the uncertainty signal
+moved to its own `field_confidence` column instead of being embedded in the
+label), every original comment is preserved verbatim in `notes`, and the
+dimension fields are named `width_m`/`length_m`/`depth_m` — `depth`, not
+`height`, per Hanna's explicit preference, even though the raw field notes
+literally said "height" for that measurement; matches the `depth_m`
+convention already used everywhere else in this project (Veress 2017
+diameter/depth baselines, the susceptibility model's `min_dev_m`, etc.).
+Caught one more real bug during verification: a `None`-vs-`NaN` check
+(`row.width1_m is None`) that silently never fired, because pandas casts
+`None` to float `nan` in a numeric column and `nan is None` is `False` in
+Python — fixed with `pd.isna()`. Only affected the flag *text* for one row
+("A bit less than 2m"), not any actual data value, but worth noting as
+another instance of the same lesson this project keeps relearning: verify
+by reading real output, don't trust that a condition does what it looks
+like it does.

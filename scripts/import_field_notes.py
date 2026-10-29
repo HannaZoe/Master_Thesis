@@ -15,11 +15,15 @@ is campaign data -- see fieldwork/CLAUDE.md):
    and were read and interpreted by hand rather than regex-parsed, since a
    generic pattern risks silently guessing wrong on real measurement data.
 
-Both get parsed into structured depth/width fields where the text is
-genuinely unambiguous, written to fieldwork/field_data/ (tracked in git,
-same exception as data/manual/ -- see data/CLAUDE.md and fieldwork/CLAUDE.md).
-Anything ambiguous stays null with a flag explaining why, rather than a
-guessed number.
+Both get parsed into structured width/length/depth fields where the text is
+genuinely unambiguous, then merged into one analyst-ready table,
+`fieldwork/field_data/fieldwork_annotations.gpkg` (tracked in git, same
+exception as data/manual/ -- see data/CLAUDE.md and fieldwork/CLAUDE.md):
+`type` is a clean category with no embedded "?" -- that signal moves to its
+own `field_confidence` column instead -- `notes` keeps every original
+comment verbatim, and `flag` surfaces anything worth a second look (inferred
+units, vague/incomplete notes, a point marked wrong by a later note) rather
+than silently guessing a number that isn't actually in the source text.
 """
 
 import re
@@ -31,8 +35,7 @@ import pandas as pd
 
 ZIP_SOURCE = Path(r"C:\Users\Hanna\Downloads\sinkholes_lower.zip")
 RAW_DIR = Path("fieldwork/field_data/raw")
-OUT_LOWER = Path("fieldwork/field_data/field_verification_20260827_lower.gpkg")
-OUT_HIGHER = Path("fieldwork/field_data/field_verification_20260827_higher.gpkg")
+OUT_UNIFIED = Path("fieldwork/field_data/fieldwork_annotations.gpkg")
 
 # ---------------------------------------------------------------------------
 # Source 1: field-notes app export ("lower" precision GPS)
@@ -226,6 +229,105 @@ HIGHER_PARSED = {
 # fmt: on
 
 
+LOWER_TYPE_MAP = {
+    "Sinkhole?": ("Doline", "uncertain"),
+    "Sinkhole": ("Doline", "confirmed"),
+    "Sinkhole? (very small)": ("Doline", "uncertain"),
+    "Cave Sinkhole?": ("Cave Doline", "uncertain"),
+    "Rillenkarst": ("Rillenkarst", "confirmed"),
+}
+# all "Other"-typed QField points turned out to be caves on inspection (see
+# HIGHER_PARSED notes) -- "Doline (confirmed)" drops the redundant suffix,
+# the confirmation moves to its own field_confidence column instead.
+HIGHER_TYPE_MAP = {
+    "Doline (confirmed)": ("Doline", "confirmed"),
+    "Other": ("Cave Doline", "confirmed"),
+    "Gully": ("Gully", "confirmed"),
+}
+PERSON_NORMALIZE = {"Ha": "Hanna", "Hanna": "Hanna"}
+
+
+def build_unified(lower: gpd.GeoDataFrame, higher: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Merge both sources into one clean, analyst-ready table.
+
+    No question marks in `type` -- that signal moves to its own
+    `field_confidence` column instead of being baked into the category
+    string. Every original comment is preserved verbatim in `notes`,
+    nothing summarized away. `flag` carries forward anything worth a second
+    look (inferred units, vague/incomplete notes, a point marked wrong, a
+    doline sitting in the hiking path) -- genuinely mixed in nature
+    (sometimes about whether to trust the numbers, sometimes just
+    noteworthy context), left as one column rather than forcing a false
+    separation.
+    """
+    lower_rows = []
+    for row in lower.itertuples(index=False):
+        type_, confidence = LOWER_TYPE_MAP.get(row.title, (None, None))
+        note = row.raw_note
+        if row.title == "Sinkhole? (very small)" and isinstance(note, str):
+            note = f"[very small] {note}"
+
+        flag = None
+        if row.parse_status == "no_note":
+            flag = "No note recorded."
+        elif row.parse_status == "no_dimensions":
+            flag = "No dimensions given in the note."
+        elif (
+            row.parse_status == "manual_override" and pd.isna(row.width1_m) and pd.isna(row.depth_m)
+        ):
+            flag = "Vague single estimate only, no clear width/depth split."
+        elif row.measurement_method == "pole":
+            flag = "Depth measured with a pole (likely more precise than a visual estimate)."
+        elif row.approx:
+            flag = "Note uses hedging language (maybe/approx/etc.) -- treat as approximate."
+
+        lower_rows.append(
+            {
+                "source": "notes_app",
+                "type": type_,
+                "field_confidence": confidence,
+                "width_m": row.width1_m,
+                "length_m": row.width2_m,
+                "depth_m": row.depth_m,
+                "person": None,
+                "notes": note,
+                "flag": flag,
+                "n_photos": row.n_photos,
+                "timestamp": row.timestamp,
+                "geometry": row.geometry,
+            }
+        )
+
+    higher_rows = []
+    for row in higher.itertuples(index=False):
+        type_, confidence = HIGHER_TYPE_MAP.get(row.type, (None, None))
+
+        flag = row.review_flag
+        if flag is None and row.unit_inferred:
+            flag = "Unit inferred from magnitude, not stated explicitly in the note."
+
+        higher_rows.append(
+            {
+                "source": "qfield",
+                "type": type_,
+                "field_confidence": confidence,
+                "width_m": row.width1_m,
+                "length_m": row.width2_m,
+                "depth_m": row.depth_m,
+                "person": PERSON_NORMALIZE.get(row.person, row.person),
+                "notes": row.raw_note,
+                "flag": flag,
+                "n_photos": 0,
+                "timestamp": row.created_at,
+                "geometry": row.geometry,
+            }
+        )
+
+    combined = gpd.GeoDataFrame(lower_rows + higher_rows, geometry="geometry", crs=lower.crs)
+    combined["timestamp"] = pd.to_datetime(combined["timestamp"], utc=True)
+    return combined
+
+
 def build_higher() -> gpd.GeoDataFrame:
     gdf = gpd.read_file(RAW_DIR / "fieldwork_points_higher.shp")
     rows = []
@@ -258,18 +360,18 @@ def main() -> None:
         print(f"{RAW_DIR} already populated, skipping extraction")
 
     lower = build_lower()
-    lower.to_file(OUT_LOWER, driver="GPKG")
-    print(f"wrote {len(lower)} points to {OUT_LOWER}")
-    print(lower["parse_status"].value_counts().to_string())
-
     higher = build_higher()
-    higher.to_file(OUT_HIGHER, driver="GPKG")
-    print(f"\nwrote {len(higher)} points to {OUT_HIGHER}")
+    unified = build_unified(lower, higher)
+    unified.to_file(OUT_UNIFIED, driver="GPKG")
+
+    print(f"wrote {len(unified)} points to {OUT_UNIFIED}")
+    print(unified["source"].value_counts().to_string())
+    print("\ntype (no question marks):")
+    print(unified["type"].value_counts(dropna=False).to_string())
     print(
-        f"  {higher['depth_m'].notna().sum()} with a depth value "
-        f"({higher['unit_inferred'].sum()} unit-inferred, not explicit)"
+        f"\n{unified['flag'].notna().sum()} flagged for a second look; "
+        f"{unified['flag'].isna().sum()} clean reads"
     )
-    print(f"  {higher['review_flag'].notna().sum()} flagged for manual review")
 
 
 if __name__ == "__main__":
