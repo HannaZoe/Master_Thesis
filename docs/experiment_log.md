@@ -725,3 +725,86 @@ and the pending thermokarst paragraph revision) - all logged in
 docx saved as `expose_draft_2026-09-28.docx` (dated snapshot, since the
 live `expose_draft.docx` was open/locked at save time) - reconcile the two
 next session.
+
+---
+
+## 2026-10-29 — Import and cross-check the real August 2026 field data
+
+**What we did:** Brought the actual field-verification data into the
+project for the first time, from two independent sources for the same
+field day (2026-08-27), both found via `data/fieldwork/` (a staging folder
+Hanna had prepared) plus `sinkholes_lower.zip` in Downloads:
+
+1. A field-notes app export ("lower" GPS precision) — 31 pins with
+   free-text dimension notes, 41 linked photos.
+2. **The QField project's own exported layer** (`fieldwork_points_higher.shp`,
+   "higher" GPS precision) — 29 points, schema exactly matching the QField
+   project built earlier this project (`person`/`type`/`notes`/lat/lon). So
+   that project *was* used in the field after all — it just never got
+   synced via QFieldCloud, only shared as a local export. Worth revisiting
+   whether to set up the actual cloud sync for next time, now that the
+   project schema is confirmed to work in practice.
+
+Copied both raw exports unmodified to `data/raw/20260827_field_notes/`,
+then wrote `scripts/import_field_notes.py` to parse the free text into
+structured `depth_m`/`width1_m`/`width2_m` fields — outputs
+`data/manual/field_verification_20260827_lower.gpkg` and `..._higher.gpkg`.
+
+**Thought:** the notes-app text was regular enough ("{H}m height / {W1} and
+{W2} wide") to parse with a verified regex. The QField notes were typed in
+the field under worse conditions — lots of typos, inconsistent/implicit
+units, several genuinely incomplete or ambiguous entries — so those were
+read and interpreted by hand, row by row, rather than regex-parsed; a
+generic pattern risks silently guessing wrong on real measurement data, and
+a wrong number silently entering the thesis's ground-truth data is worse
+than an honest null.
+
+**Result:**
+- Notes-app dataset (31 pins): row-by-row verification caught two real
+  parser bugs before they reached the output — missing separator words
+  ("times", "x"), and a decimal-comma/separator-comma collision that
+  silently mis-parsed single-width notes like "2,50m wide" into two widths
+  ("2" and "50"). Fixed after confirming no note in the dataset actually
+  uses a bare comma to join two widths. Final: 22 clean regex matches, 2
+  single-width fallback, 1 range fallback, 4 hand-coded outliers, 1 note
+  with no dimensions, 1 empty pin.
+- QField dataset (29 points): read and encoded by hand. 18/29 have a usable
+  depth value, 13 of those with the unit inferred from magnitude rather
+  than stated explicitly (flagged `unit_inferred`) — e.g. a bare "435" next
+  to an explicit "4m" is obviously 435cm, not 435m, given real doline
+  widths. 24/29 carry a `review_flag` noting something that needs Hanna's
+  own judgment: one point's measurement was explicitly called "marked
+  wrong" by a later note; two notes got cut off mid-sentence (one literally
+  ends "Depth:" with no number); one note ("10*17") has no depth/width
+  labels at all, meaning genuinely unclear; several are rock-drop timings
+  (e.g. "14.4 seconds falling"), which are not themselves a distance
+  measurement and weren't converted to one. Real content worth surfacing:
+  at least 4 distinct cave features (depths ~15-20m, ~15.4m, ~28.8m, and
+  the Cave Sinkhole from the other dataset at ~16m) — not one cave, several
+  — plus recurring frost-weathering observations and one doline sitting
+  directly in the hiking path.
+- The two datasets **do not spatially overlap at all** — median distance
+  529m apart, zero points within 15m of each other. They cover different
+  stretches of the route, not the same ground twice.
+- Cross-checked against the existing manual catalogue (15m threshold): the
+  QField ("higher") points matched an existing `Sinkholes.shp`/
+  `Suspicious_Areas.shp` feature **19/26 times (73%)**; the notes-app
+  ("lower") points matched only **12/30 (40%)**.
+
+**Conclusion:** The match-rate gap is explainable, not a data-quality
+problem: the QField project was almost certainly used to navigate *to*
+already-mapped candidates (high match rate expected), while the notes-app
+walk reads as more exploratory and found many genuinely new locations —
+consistent with the "sooo many more depressions in the hillshade"
+observation from the 2026-08-23 session. Combined with that session's
+susceptibility-model finding (can't distinguish doline from landslide/gully
+on topography+brightness alone), the picture is consistent: no single
+method here — remote detection, manual digitizing, or a field walk — is
+independently trustworthy for a true count. **Not yet decided**: whether/how
+to merge the ~22 combined new locations into `Sinkholes.shp`/
+`Suspicious_Areas.shp` — that changes the ground-truth dataset other
+analyses depend on, so it's Hanna's call, not something to do silently.
+Also not yet done: resolving the multi-point cave clusters into single
+features, and the "use this data to calculate roughness" intent Hanna
+flagged in her own field notes (point 5 of the QField set) — both are real
+next steps, not today's task.

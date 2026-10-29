@@ -17,6 +17,11 @@ data/processed/*
 !data/interim/.gitkeep
 !data/processed/.gitkeep
 
+# Staging folder for incoming raw field data -- consolidated into
+# data/raw/20260827_field_notes/ by scripts/import_field_notes.py,
+# safe to delete once that's confirmed
+data/fieldwork/
+
 # Point cloud / raster formats (in case any land outside data/ by accident)
 *.las
 *.laz
